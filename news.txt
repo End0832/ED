@@ -1,8 +1,17 @@
 Une nouvelle version est arrivée !!!
-Voici un court récapitulatif des modifications apportées :
-- Refonte complète de l'organisation interne du site,
+
+Voici les nouvelles features:
+- Ajout du visionnage des moyennes "Tronc Commun" et "Options",
+- Ajout de la différence d'affichage si une moyenne diffère de ce qui est affiché sur ecoledirecte,
+- Ajout de l'affichage du statut "ouvert/fermé" pour chaque trimestre.
+
+Patch:
+- Correction erreur précision calcul moyenne.
+
+En interne:
 - Nouvelle fenêtre Pop-Up "news" tenant informé des modifications après mise à jour,
 - Refonte du message de rejet pour l'absence du pseudo dans la whitelist,
-- Création d'un moyen de pause pour les maintenances.
+- Création d'un système de pause pour les maintenances,
+- Refonte complète de l'organisation interne du site.
 
-A compter de ce jour, je vous tiendrais informé par ce biais :)
+A compter de ce jour, je vous tiendrai informé par ce biais. Profitez bien des nouvelles fonctionnalités :)
