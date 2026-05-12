@@ -163,45 +163,104 @@ function pf(s) {
 function parseGrades(data) {
   const notes = data.notes || []
   const periodes = (data.periodes || []).filter(p =>
-  !p.annuel && p.codePeriode && ['A001','A002','A003'].includes(p.codePeriode)
+    !p.annuel && p.codePeriode && ['A001','A002','A003'].includes(p.codePeriode)
   )
 
   const allGrades = notes.map(n => {
     const value = pf(n.valeur), outOf = pf(n.noteSur) ?? 20, coef = pf(n.coef) ?? 1
+    const rawVal = String(n.valeur || '').trim()
+    const isDispensed = rawVal !== '' && value === null  // y'a quelque chose mais c'est pas un nombre
     return {
       name: n.devoir || '', value, outOf, coef,
-      subject: n.libelleMatiere || '?', period: n.codePeriode || '',
+      subject: n.libelleMatiere || '?',
+      codeMatiere: n.codeMatiere || '',
+      period: n.codePeriode || '',
       date: n.date || '', classAvg: pf(n.moyenneClasse),
+      nonSignificatif: n.nonSignificatif || false,
+      isDispensed,
+      rawVal,
       normalized: value !== null && outOf > 0 ? (value / outOf) * 20 : null
     }
   })
 
   return periodes.sort((a, b) => a.codePeriode.localeCompare(b.codePeriode)).map(p => {
     const pg = allGrades.filter(g => g.period === p.codePeriode)
-    const allSubjectNames = [...new Set(pg.map(g => g.subject))]
 
+    // Récupérer le mapping codeMatiere → groupe depuis periodes
+    const disciplines = p.ensembleMatieres?.disciplines || []
+    const groupes = disciplines.filter(d => d.groupeMatiere)
+    const idTronc = groupes.find(g => g.discipline === 'TRONC COMMUN')?.id
+    const idOpt   = groupes.find(g => g.discipline === 'OPTIONS')?.id
+
+    const codesTC  = new Set(disciplines.filter(d => !d.groupeMatiere && d.idGroupeMatiere === idTronc).map(d => d.codeMatiere))
+    const codesOpt = new Set(disciplines.filter(d => !d.groupeMatiere && d.idGroupeMatiere === idOpt).map(d => d.codeMatiere))
+
+    // Calculer la moyenne d'une liste de notes
+    function calcAvg(grades) {
+      const valid = grades.filter(g => g.normalized !== null && !g.nonSignificatif)
+      const totalCoef = valid.reduce((s, g) => s + g.coef, 0)
+      return totalCoef > 0 ? valid.reduce((s, g) => s + g.normalized * g.coef, 0) / totalCoef : null
+    }
+
+    function calcClassAvg(grades) {
+      const valid = grades.filter(g => g.classAvg !== null && g.outOf > 0 && !g.nonSignificatif)
+      const totalCoef = valid.reduce((s, g) => s + g.coef, 0)
+      return totalCoef > 0 ? valid.reduce((s, g) => s + (g.classAvg / g.outOf) * 20 * g.coef, 0) / totalCoef : null
+    }
+
+    // Construire les sujets
+    const allSubjectNames = [...new Set(pg.map(g => g.subject))]
     const subjects = allSubjectNames.map(name => {
       const grades = pg.filter(g => g.subject === name)
-      const valid = grades.filter(g => g.normalized !== null)
-      const totalCoef = valid.reduce((s, g) => s + g.coef, 0)
-      const avg = totalCoef > 0 ? valid.reduce((s, g) => s + g.normalized * g.coef, 0) / totalCoef : null
-
-      // Moyenne de classe pondérée par coef
-      const classValid = grades.filter(g => g.classAvg !== null && g.outOf > 0)
-      const classTotal = classValid.reduce((s, g) => s + g.coef, 0)
-      const classAvg = classTotal > 0
-        ? classValid.reduce((s, g) => s + (g.classAvg / g.outOf) * 20 * g.coef, 0) / classTotal
-        : null
-
-      return { name, average: avg, classAverage: classAvg, grades: grades.sort((a, b) => a.date.localeCompare(b.date)) }
+      const codeMatiere = grades[0]?.codeMatiere || ''
+      // Chercher la moyenne ED pour cette matière
+      const edDiscipline = disciplines.find(d => d.codeMatiere === codeMatiere && !d.groupeMatiere)
+      const edAverage = pf(edDiscipline?.moyenne)
+      return {
+        name, codeMatiere,
+        average: calcAvg(grades),
+        edAverage,   // ← moyenne telle qu'ED la stocke
+        classAverage: calcClassAvg(grades),
+        grades: grades.sort((a, b) => a.date.localeCompare(b.date))
+      }
     }).sort((a, b) => {
       if (a.average === null && b.average === null) return a.name.localeCompare(b.name)
       if (a.average === null) return 1; if (b.average === null) return -1
       return b.average - a.average
     })
 
+    // Séparer TC et Options
+    const round2 = (n) => Number(Math.round((n + Number.EPSILON) * 100) / 100)
+    const tc = subjects
+      .filter(s => codesTC.has(s.codeMatiere))
+      .map(s => ({
+        ...s,
+        average: s.average !== null ? round2(s.average) : null
+      }))
+
+    const opt = subjects
+      .filter(s => codesOpt.has(s.codeMatiere))
+      .map(s => ({
+        ...s,
+        average: s.average !== null ? round2(s.average) : null
+      }))
+    const edTcMoy  = pf(disciplines.find(d => d.groupeMatiere && d.discipline === 'TRONC COMMUN')?.moyenne)
+    const edOptMoy = pf(disciplines.find(d => d.groupeMatiere && d.discipline === 'OPTIONS')?.moyenne)
+
+    // Moyenne générale sur toutes les matières (TC + opt)
     const validAvgs = subjects.map(s => s.average).filter(a => a !== null && a > 0)
     const generalAvg = validAvgs.length > 0 ? validAvgs.reduce((s, a) => s + a, 0) / validAvgs.length : null
-    return { periodId: p.codePeriode, label: p.periode || p.codePeriode, generalAverage: generalAvg, subjects }
+
+    return {
+      periodId: p.codePeriode,
+      label: p.periode || p.codePeriode,
+      isClosed: p.cloture,
+      generalAverage: generalAvg,
+      subjects,  // toutes les matières
+      tc,        // tronc commun uniquement
+      opt,      // options uniquement
+      edTcMoy,
+      edOptMoy
+    }
   })
 }
