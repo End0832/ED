@@ -1,0 +1,8 @@
+Une nouvelle version est arrivée !!!
+Voici un court récapitulatif des modifications apportées :
+- Refonte complète de l'organisation interne du site,
+- Nouvelle fenêtre Pop-Up "news" tenant informé des modifications après mise à jour,
+- Refonte du message de rejet pour l'absence du pseudo dans la whitelist,
+- Création d'un moyen de pause pour les maintenances.
+
+A compter de ce jour, je vous tiendrais informé par ce biais :)

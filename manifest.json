@@ -1,0 +1,21 @@
+{
+  "name": "EcoleDirecte",
+  "short_name": "ED Notes",
+  "description": "Mes moyennes EcoleDirecte",
+  "start_url": "/ED/",
+  "display": "standalone",
+  "background_color": "#F0F4FF",
+  "theme_color": "#1565C0",
+  "icons": [
+    {
+      "src": "icons/192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
