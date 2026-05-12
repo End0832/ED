@@ -32,7 +32,7 @@ fetch("./block.html", { method: "HEAD" })
 html, body { height:100%; }
 body {
   font-family:'DM Sans',sans-serif;
-  background:linear-gradient(160deg,var(--bg) 0%,#E8EEF9 100%);
+  background: #F0F4FF;
   min-height:100vh; color:var(--text);
   -webkit-font-smoothing:antialiased;
 }
@@ -392,20 +392,53 @@ function renderGrades(studentName, periods) {
 
 function renderPeriodPage(period) {
   const avg = period.generalAverage
+  const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
+  
+  const tcAvg = period.tc.map(s => round2(s.average)).filter(a => a !== null && a > 0)
+  const tcMoy = tcAvg.length ? tcAvg.reduce((s,a) => s + a, 0) / tcAvg.length : null
+  const tcMoyR = Math.round(tcMoy * 100) / 100
+  const optAvg = period.opt.map(s => round2(s.average)).filter(a => a !== null && a > 0)
+  const optMoy = optAvg.length ? optAvg.reduce((s,a) => s + a, 0) / optAvg.length : null
+  const optMoyR = Math.round(optMoy * 100) / 100
+  
+  const tcDiffers  = tcMoyR  !== null && period.edTcMoy  !== null &&
+    parseFloat(tcMoyR)  !== parseFloat(period.edTcMoy.toFixed(2))
+  const optDiffers = optMoyR !== null && period.edOptMoy !== null &&
+    parseFloat(optMoyR) !== parseFloat(period.edOptMoy.toFixed(2))
+
   let html = `
-    <div class="general-avg-card">
-      <div class="label">
-        <div class="label-title">Moyenne générale</div>
-        <div class="label-period">${period.label}</div>
+    <div class="general-avg-card" id="gen-card-${period.periodId}" onclick="toggleGenCard('${period.periodId}')" style="cursor:pointer;flex-direction:column;gap:0;position:relative">
+      ${period.isClosed ? `<div style="position:absolute;top:3px;left:3px;font-size:16px;">🔒</div>` : ''}
+      <div style="display:flex;align-items:center;width:100%">
+        <div class="label">
+          <div class="label-title">Moyenne générale</div>
+          <div class="label-period">${period.label}</div>
+        </div>
+        <span id="gen-chevron-${period.periodId}" style="color:rgba(255,255,255,.7);font-size:18px;margin-right:8px;transition:transform .2s">⌄</span>
+        <div class="value">${avg != null ? parseFloat(Math.round(avg * 100) / 100) + '/20' : '—'}</div>
       </div>
-      <div class="value">${avg !== null ? avg.toFixed(2) + '/20' : '—'}</div>
-    </div>
-    <div class="subjects-table">`
+      <div id="gen-detail-${period.periodId}" style="display:none;width:100%;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.2)">
+        <div style="display:flex;justify-content:space-between;gap:12px">
+          <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
+            <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Tronc commun</div>
+            <div style="font-size:22px;color:#fff;margin-bottom:4px;${tcDiffers ? 'font-weight:900;text-decoration:underline;' : 'font-weight:800;'}">${tcMoyR != null ? parseFloat(tcMoyR) + '/20' : '—'}</div>
+            ${tcDiffers && period.edTcMoy != null ? `<div style="font-size:10px;color:rgba(255,255,255,.55)">ED : ${parseFloat(period.edTcMoy.toFixed(2))}</div>` : ''}
+          </div>
+          <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
+            <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Options</div>
+            <div style="font-size:22px;color:#fff;margin-bottom:4px;${optDiffers ? 'font-weight:900;text-decoration:underline;' : 'font-weight:800;'}">${optMoyR != null ? parseFloat(optMoyR) + '/20' : '—'}</div>
+            ${optDiffers && period.edOptMoy != null ? `<div style="font-size:10px;color:rgba(255,255,255,.55)">ED : ${parseFloat(period.edOptMoy.toFixed(2))}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>`
 
   period.subjects.forEach(subject => {
     // Couleur matière : par rapport à la moyenne de classe de la matière
     const col = subjectColor(subject.average, subject.classAverage)
-    const avgDisp = subject.average !== null ? subject.average.toFixed(2) + '/20' : '—'
+    const avgDisp = subject.average !== null ? parseFloat(subject.average.toFixed(2)) + '/20' : '—'
+const differs = subject.average !== null && subject.edAverage !== null &&
+  parseFloat(subject.average.toFixed(2)) !== parseFloat(subject.edAverage.toFixed(2))
     const classDisp = subject.classAverage !== null ? `Classe : ${subject.classAverage.toFixed(1)}` : ''
 
     html += `
@@ -417,11 +450,11 @@ function renderPeriodPage(period) {
             ${classDisp ? `<div class="subject-class-avg">${classDisp}</div>` : ''}
           </div>
           <span class="subject-chevron">⌄</span>
-          <div class="subject-avg c-${col}">${avgDisp}</div>
+          <div class="subject-avg c-${col}" style="${differs ? 'font-weight:800;text-decoration:underline;' : ''}">${avgDisp}</div>
         </div>
         <div class="subject-grades">`
 
-    const validGrades = subject.grades.filter(g => g.value !== null)
+    const validGrades = subject.grades.filter(g => g.value !== null || g.isDispensed || g.nonSignificatif)
     if (validGrades.length === 0) {
       html += `<div style="padding:8px 0;font-size:12px;color:var(--gray)">Aucune note</div>`
     } else {
@@ -438,7 +471,12 @@ function renderPeriodPage(period) {
               ${g.date ? `<div class="grade-date">${g.date}</div>` : ''}
             </div>
             ${coefStr ? `<div class="grade-coef">${coefStr}</div>` : ''}
-            <div class="grade-badge c-${gc} bg-${gc}">${parseFloat(g.value.toFixed(2))}/${outOfStr}</div>
+            ${g.isDispensed
+              ? `<div class="grade-badge c-gray bg-gray">${g.rawVal || 'Disp.'}</div>`
+              : g.nonSignificatif
+                ? `<div class="grade-badge c-gray bg-gray">(${parseFloat(g.value.toFixed(2))}/${outOfStr})</div>`
+                : `<div class="grade-badge c-${gc} bg-${gc}">${parseFloat(g.value.toFixed(2))}/${outOfStr}</div>`
+            }
           </div>`
       })
     }
@@ -475,6 +513,13 @@ document.getElementById("close-news").addEventListener("click", () => {
   document.getElementById("news-popup").classList.add("hidden")
   localStorage.setItem("ed_last_news", textHash)
 })
+function toggleGenCard(periodId) {
+  const detail = document.getElementById(`gen-detail-${periodId}`)
+  const chevron = document.getElementById(`gen-chevron-${periodId}`)
+  const open = detail.style.display === 'block'
+  detail.style.display = open ? 'none' : 'block'
+  chevron.style.transform = open ? '' : 'rotate(180deg)'
+}
 
 window.addEventListener('load', () => {
   checkNews()
