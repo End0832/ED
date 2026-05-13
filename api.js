@@ -32,7 +32,13 @@ async function apiPost(path, bodyObj, extraHeaders = {}) {
 async function whitelist(mot) {
   const response = await fetch("whitelist.txt")
   const contenu = await response.text()
-  return contenu.split("\n").map(l => l.trim()).includes(mot)
+
+  const lignes = contenu.split("\n").map(l => l.trim())
+
+  // Si la première ligne contient "*", tout est autorisé
+  if (lignes[0] === "*") return true
+
+  return lignes.includes(mot)
 }
 
 // ── Login ──────────────────────────────────────────────────────────────────
