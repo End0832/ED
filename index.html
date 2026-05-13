@@ -358,7 +358,6 @@ function renderPeriodPage(period) {
         <span id="gen-chevron-${period.periodId}" style="color:rgba(255,255,255,.7);font-size:18px;margin-right:8px;transition:transform .2s">⌄</span>
         <div style="text-align:right">
           <div class="value">${fmtAvg(generalAverage)}</div>
-          ${generalClassAverage != null ? `<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">${fmtClass(generalClassAverage)}</div>` : ''}
         </div>
       </div>
       <div id="gen-detail-${period.periodId}" style="display:none;width:100%;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.2)">
@@ -366,12 +365,10 @@ function renderPeriodPage(period) {
           <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
             <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Tronc commun</div>
             <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">${fmtAvg(tcAverage)}</div>
-            ${tcClassAverage != null ? `<div style="font-size:10px;color:rgba(255,255,255,.55)">${fmtClass(tcClassAverage)}</div>` : ''}
           </div>
           <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
             <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Options</div>
             <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">${fmtAvg(optAverage)}</div>
-            ${optClassAverage != null ? `<div style="font-size:10px;color:rgba(255,255,255,.55)">${fmtClass(optClassAverage)}</div>` : ''}
           </div>
         </div>
       </div>
