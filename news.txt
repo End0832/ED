@@ -6,7 +6,9 @@ Voici les nouvelles features:
 - Ajout de l'affichage du statut "ouvert/fermé" pour chaque trimestre.
 
 Patch:
-- Correction erreur précision calcul moyenne.
+- Correction erreur précision calcul moyenne,
+- Correction de la couleur du bas de page,
+- Correction du bouton de déconnexion qui ne s'affichait pas.
 
 En interne:
 - Nouvelle fenêtre Pop-Up "news" tenant informé des modifications après mise à jour,
