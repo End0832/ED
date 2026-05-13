@@ -47,7 +47,7 @@ async function login(username, password) {
   $('login-error').style.display = 'none'
   try {
     const whitelisted = await whitelist(username)
-    if (!whitelisted) throw new Error("Accès interdit")
+    if (!whitelisted) throw new Error("Vous ne faites pas partie de la liste des personnes autorisées. Contactez moi pour vous ajouter.")
     const { cn, cv } = loadCnCv()
     const bodyData = cn && cv
       ? { identifiant: username, motdepasse: password, isRelogin: false, cn, cv, uuid: '', fa: [{ cn, cv }] }
