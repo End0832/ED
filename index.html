@@ -39,61 +39,6 @@ body {
 .screen { display:none; }
 .screen.active { display:flex; }
 
-/* ── News ── */
-.popup {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-.popup.hidden {
-  display: none;
-}
-
-.news-content {
-  width: 90%;
-  max-width: 420px;
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-}
-
-#close-news {
-  margin-top: 16px;
-  width: 100%;
-  padding: 12px 14px;
-
-  border: none;
-  border-radius: 10px;
-
-  background: #1565C0;
-  color: white;
-
-  font-weight: 600;
-  font-size: 14px;
-
-  cursor: pointer;
-
-  transition: transform 0.1s, background 0.2s;
-}
-
-#close-news:hover {
-  background: #0D47A1;
-}
-
-#close-news:active {
-  transform: scale(0.98);
-}
-#news-text {
-  white-space: pre-line;
-  margin: 12px 0;
-}
-
 /* ── LOGIN ── */
 #screen-login { min-height:100vh; align-items:center; justify-content:center; padding:24px; }
 .login-card {
@@ -164,10 +109,18 @@ body {
 .grades-header { background:var(--surface); box-shadow:var(--shadow); position:sticky; top:0; z-index:10; }
 .grades-header-inner { max-width:var(--max-width); margin:0 auto; }
 .grades-header-top { display:flex; align-items:center; padding:14px 20px 8px; gap:12px; }
-.grades-header-top h1 { font-family:'Plus Jakarta Sans',sans-serif; font-size:20px; font-weight:800; color:var(--blue-dark); flex:1; }
+.grades-header-top h1 { font-family:'Plus Jakarta Sans',sans-serif; font-size:20px; font-weight:800; color:var(--blue-dark); }
 .student-name { font-size:13px; color:var(--muted); }
 .btn-logout { background:none; border:none; cursor:pointer; color:var(--gray); font-size:20px; padding:6px; border-radius:8px; transition:background .15s,color .15s; }
 .btn-logout:hover { background:var(--border); color:#c62828; }
+.btn-normalize {
+  background:none; border:1.5px solid var(--border); cursor:pointer;
+  color:var(--muted); font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:12px; font-weight:700; padding:5px 10px; border-radius:8px;
+  transition:background .15s,color .15s,border-color .15s; white-space:nowrap;
+}
+.btn-normalize:hover { background:var(--border); color:var(--blue); border-color:var(--blue); }
+.btn-normalize.active { background:var(--blue); color:#fff; border-color:var(--blue); }
 
 /* Onglets */
 .period-tabs { display:flex; gap:8px; padding:0 12px 12px; }
@@ -201,6 +154,7 @@ body {
 /* Tableau matières */
 .subjects-table { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
 .subject-row { border-bottom:1px solid var(--border); cursor:pointer; }
+.subject-row.no-grades { cursor:default; }
 .subject-row:last-child { border-bottom:none; }
 .subject-main { display:flex; align-items:center; padding:13px 16px; gap:12px; transition:background .12s; }
 .subject-row:hover .subject-main { background:#FAFBFF; }
@@ -222,6 +176,9 @@ body {
 .grade-date { font-size:10px; color:var(--gray); }
 .grade-coef { font-size:10px; color:var(--gray); flex-shrink:0; }
 .grade-badge { font-family:'Plus Jakarta Sans',sans-serif; font-size:13px; font-weight:700; padding:3px 10px; border-radius:7px; flex-shrink:0; }
+.val-norm { display:none; }
+body.normalize .val-native { display:none; }
+body.normalize .val-norm { display:inline; }
 
 .c-blue   { color:var(--blue); }
 .c-orange { color:var(--orange); }
@@ -242,15 +199,6 @@ body {
 <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
-
-<!-- News -->
-<div id="news-popup" class="popup hidden">
-  <div class="news-content">
-    <h2 id="news-title"></h2>
-    <p id="news-text"></p>
-    <button id="close-news">OK</button>
-  </div>
-</div>
 
 <!-- LOGIN -->
 <div id="screen-login" class="screen active">
@@ -299,11 +247,14 @@ body {
   <div class="grades-header">
     <div class="grades-header-inner">
       <div class="grades-header-top">
-        <div>
+        <div style="flex:1">
           <h1>Mes moyennes</h1>
           <div class="student-name" id="student-name"></div>
         </div>
         <button class="btn-logout" id="btn-logout" title="Déconnexion"><img src="icons/logout.png" alt="logout" style="width:20px;height:20px;"></button>
+        <div style="flex:1;display:flex;justify-content:flex-end">
+          <button class="btn-normalize" id="btn-normalize">/x</button>
+        </div>
       </div>
       <div class="period-tabs" id="period-tabs"></div>
     </div>
@@ -315,6 +266,7 @@ body {
 
 <script>
 let currentPage = 0
+let normalizeOn = false
 
 const $ = id => document.getElementById(id)
 
@@ -330,14 +282,6 @@ function showLoading(text, sub = '') {
 function showError(msg) {
   $('login-error-msg').textContent = msg
   $('login-error').style.display = 'flex'
-}
-function showNews(text) {
-  document.getElementById("news-popup").classList.remove("hidden")
-  
-  document.getElementById("news-title").textContent =
-    "News"
-  document.getElementById("news-text").textContent =
-    text
 }
 </script>
 
@@ -358,7 +302,16 @@ function subjectColor(avg, classAvg) {
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────
+let _periods = []
+
+function page_querySelectorAll_rebind() {
+  $('period-pages').querySelectorAll('.subject-row:not(.no-grades)').forEach(row => {
+    row.addEventListener('click', () => row.classList.toggle('open'))
+  })
+}
+
 function renderGrades(studentName, periods) {
+  _periods = periods
   $('student-name').textContent = studentName
   const tabs = $('period-tabs'), pages = $('period-pages')
   tabs.innerHTML = ''; pages.innerHTML = ''
@@ -381,9 +334,7 @@ function renderGrades(studentName, periods) {
     pages.appendChild(page)
   })
 
-  pages.querySelectorAll('.subject-row').forEach(row => {
-    row.addEventListener('click', () => row.classList.toggle('open'))
-  })
+  page_querySelectorAll_rebind()
 
   currentPage = initialPage
   updatePager()
@@ -391,20 +342,10 @@ function renderGrades(studentName, periods) {
 }
 
 function renderPeriodPage(period) {
-  const avg = period.generalAverage
-  const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
-  
-  const tcAvg = period.tc.map(s => round2(s.average)).filter(a => a !== null && a > 0)
-  const tcMoy = tcAvg.length ? tcAvg.reduce((s,a) => s + a, 0) / tcAvg.length : null
-  const tcMoyR = Math.round(tcMoy * 100) / 100
-  const optAvg = period.opt.map(s => round2(s.average)).filter(a => a !== null && a > 0)
-  const optMoy = optAvg.length ? optAvg.reduce((s,a) => s + a, 0) / optAvg.length : null
-  const optMoyR = Math.round(optMoy * 100) / 100
-  
-  const tcDiffers  = tcMoyR  !== null && period.edTcMoy  !== null &&
-    parseFloat(tcMoyR)  !== parseFloat(period.edTcMoy.toFixed(2))
-  const optDiffers = optMoyR !== null && period.edOptMoy !== null &&
-    parseFloat(optMoyR) !== parseFloat(period.edOptMoy.toFixed(2))
+  const { generalAverage, generalClassAverage, tcAverage, tcClassAverage, optAverage, optClassAverage } = period
+
+  const fmtClass = (v) => v != null ? `Classe : ${v}` : ''
+  const fmtAvg   = (v) => v != null ? `${v}/20` : '—'
 
   let html = `
     <div class="general-avg-card" id="gen-card-${period.periodId}" onclick="toggleGenCard('${period.periodId}')" style="cursor:pointer;flex-direction:column;gap:0;position:relative">
@@ -415,48 +356,49 @@ function renderPeriodPage(period) {
           <div class="label-period">${period.label}</div>
         </div>
         <span id="gen-chevron-${period.periodId}" style="color:rgba(255,255,255,.7);font-size:18px;margin-right:8px;transition:transform .2s">⌄</span>
-        <div class="value">${avg != null ? parseFloat(Math.round(avg * 100) / 100) + '/20' : '—'}</div>
+        <div style="text-align:right">
+          <div class="value">${fmtAvg(generalAverage)}</div>
+          ${generalClassAverage != null ? `<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">${fmtClass(generalClassAverage)}</div>` : ''}
+        </div>
       </div>
       <div id="gen-detail-${period.periodId}" style="display:none;width:100%;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.2)">
         <div style="display:flex;justify-content:space-between;gap:12px">
           <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
             <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Tronc commun</div>
-            <div style="font-size:22px;color:#fff;margin-bottom:4px;${tcDiffers ? 'font-weight:900;text-decoration:underline;' : 'font-weight:800;'}">${tcMoyR != null ? parseFloat(tcMoyR) + '/20' : '—'}</div>
-            ${tcDiffers && period.edTcMoy != null ? `<div style="font-size:10px;color:rgba(255,255,255,.55)">ED : ${parseFloat(period.edTcMoy.toFixed(2))}</div>` : ''}
+            <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">${fmtAvg(tcAverage)}</div>
+            ${tcClassAverage != null ? `<div style="font-size:10px;color:rgba(255,255,255,.55)">${fmtClass(tcClassAverage)}</div>` : ''}
           </div>
           <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
             <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Options</div>
-            <div style="font-size:22px;color:#fff;margin-bottom:4px;${optDiffers ? 'font-weight:900;text-decoration:underline;' : 'font-weight:800;'}">${optMoyR != null ? parseFloat(optMoyR) + '/20' : '—'}</div>
-            ${optDiffers && period.edOptMoy != null ? `<div style="font-size:10px;color:rgba(255,255,255,.55)">ED : ${parseFloat(period.edOptMoy.toFixed(2))}</div>` : ''}
+            <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">${fmtAvg(optAverage)}</div>
+            ${optClassAverage != null ? `<div style="font-size:10px;color:rgba(255,255,255,.55)">${fmtClass(optClassAverage)}</div>` : ''}
           </div>
         </div>
       </div>
     </div>`
 
   period.subjects.forEach(subject => {
-    // Couleur matière : par rapport à la moyenne de classe de la matière
-    const col = subjectColor(subject.average, subject.classAverage)
-    const avgDisp = subject.average !== null ? parseFloat(subject.average.toFixed(2)) + '/20' : '—'
-const differs = subject.average !== null && subject.edAverage !== null &&
-  parseFloat(subject.average.toFixed(2)) !== parseFloat(subject.edAverage.toFixed(2))
-    const classDisp = subject.classAverage !== null ? `Classe : ${subject.classAverage.toFixed(1)}` : ''
+    const hasGrades = subject.grades.some(g => g.value !== null || g.isDispensed || g.nonSignificatif)
+    const col = hasGrades ? subjectColor(subject.average, subject.classAverage) : 'gray'
+    const avgDisp = hasGrades ? fmtAvg(subject.average) : '—'
+    const classDisp = hasGrades && subject.classAverage !== null ? `Classe : ${subject.classAverage.toFixed(1)}` : ''
 
     html += `
-      <div class="subject-row">
+      <div class="subject-row${hasGrades ? '' : ' no-grades'}">
         <div class="subject-main">
           <div class="subject-bar bar-${col}"></div>
           <div class="subject-info">
             <div class="subject-name">${subject.name}</div>
             ${classDisp ? `<div class="subject-class-avg">${classDisp}</div>` : ''}
           </div>
-          <span class="subject-chevron">⌄</span>
-          <div class="subject-avg c-${col}" style="${differs ? 'font-weight:800;text-decoration:underline;' : ''}">${avgDisp}</div>
+          ${hasGrades ? '<span class="subject-chevron">⌄</span>' : ''}
+          <div class="subject-avg c-${col}">${avgDisp}</div>
         </div>
         <div class="subject-grades">`
 
     const validGrades = subject.grades.filter(g => g.value !== null || g.isDispensed || g.nonSignificatif)
     if (validGrades.length === 0) {
-      html += `<div style="padding:8px 0;font-size:12px;color:var(--gray)">Aucune note</div>`
+      // pas de contenu, la ligne n'est pas cliquable
     } else {
       validGrades.forEach(g => {
         // Couleur note : par rapport à la moyenne de classe de CE devoir (ramenée sur 20)
@@ -474,8 +416,8 @@ const differs = subject.average !== null && subject.edAverage !== null &&
             ${g.isDispensed
               ? `<div class="grade-badge c-gray bg-gray">${g.rawVal || 'Disp.'}</div>`
               : g.nonSignificatif
-                ? `<div class="grade-badge c-gray bg-gray">(${parseFloat(g.value.toFixed(2))}/${outOfStr})</div>`
-                : `<div class="grade-badge c-${gc} bg-${gc}">${parseFloat(g.value.toFixed(2))}/${outOfStr}</div>`
+                ? `<div class="grade-badge c-gray bg-gray">(<span class="val-native">${parseFloat(g.value.toFixed(2))}/${outOfStr}</span><span class="val-norm">${g.normalized !== null ? parseFloat(g.normalized.toFixed(2)) : '?'}</span>)</div>`
+                : `<div class="grade-badge c-${gc} bg-${gc}"><span class="val-native">${parseFloat(g.value.toFixed(2))}/${outOfStr}</span><span class="val-norm">${g.normalized !== null ? parseFloat(g.normalized.toFixed(2)) : '?'}</span></div>`
             }
           </div>`
       })
@@ -486,7 +428,16 @@ const differs = subject.average !== null && subject.edAverage !== null &&
   return html + '</div>'
 }
 
-function goToPage(idx) { currentPage = idx; updatePager() }
+function goToPage(idx) {
+  document.querySelectorAll('.subject-row.open').forEach(r => r.classList.remove('open'))
+  document.querySelectorAll('[id^="gen-detail-"]').forEach(d => {
+    d.style.display = 'none'
+    const chevron = document.getElementById(d.id.replace('gen-detail-', 'gen-chevron-'))
+    if (chevron) chevron.style.transform = ''
+  })
+  currentPage = idx
+  updatePager()
+}
 function updatePager() {
   $('period-pages').style.transform = `translateX(-${currentPage * 100}%)`
   $('period-tabs').querySelectorAll('.period-tab').forEach((t, i) => t.classList.toggle('active', i === currentPage))
@@ -503,15 +454,17 @@ $('eye-btn').addEventListener('click', () => {
   const inp = $('input-password')
   inp.type = inp.type === 'password' ? 'text' : 'password'
 })
+$('btn-normalize').addEventListener('click', () => {
+  normalizeOn = !normalizeOn
+  $('btn-normalize').textContent = normalizeOn ? '/20' : '/x'
+  $('btn-normalize').classList.toggle('active', normalizeOn)
+  document.body.classList.toggle('normalize', normalizeOn)
+})
 $('btn-logout').addEventListener('click', () => {
   clearStorage(); xToken = null
   $('input-username').value = ''; $('input-password').value = ''
   $('login-error').style.display = 'none'
   showScreen('login')
-})
-document.getElementById("close-news").addEventListener("click", () => {
-  document.getElementById("news-popup").classList.add("hidden")
-  localStorage.setItem("ed_last_news", textHash)
 })
 function toggleGenCard(periodId) {
   const detail = document.getElementById(`gen-detail-${periodId}`)
@@ -522,7 +475,6 @@ function toggleGenCard(periodId) {
 }
 
 window.addEventListener('load', () => {
-  checkNews()
   const creds = loadCredentials()
   if (creds) login(creds.username, creds.password)
 })
