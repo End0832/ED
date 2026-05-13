@@ -4,31 +4,6 @@ const API_VERSION = '4.90.1'
 let xToken = null
 let mfaCredentials = null
 
-// ── News ───────────────────────────────────────────────────────────────────
-let textHash = null
-async function checkNews() {
-  const res = await fetch("./news.txt")
-  const text = await res.text()
-  textHash = await hash(text)
-  const lastSeenHash = localStorage.getItem("ed_last_news")
-  
-  if (lastSeenHash === textHash) return
-
-  showNews(text)
-}
-
-// ── Hash ───────────────────────────────────────────────────────────────────
-async function hash(text) {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(text)
-
-  const buffer = await crypto.subtle.digest("SHA-256", data)
-
-  return Array.from(new Uint8Array(buffer))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("")
-}
-
 // ── Storage ────────────────────────────────────────────────────────────────
 function saveCredentials(u, p) { localStorage.setItem('ed_u', u); localStorage.setItem('ed_p', p) }
 function loadCredentials() {
@@ -53,15 +28,11 @@ async function apiPost(path, bodyObj, extraHeaders = {}) {
   catch(e) { throw new Error('Réponse non-JSON : ' + text.slice(0, 100)) }
 }
 
-
 // ── Whitelist ──────────────────────────────────────────────────────────────
 async function whitelist(mot) {
-    const response = await fetch("whitelist.txt");
-    const contenu = await response.text();
-
-    const liste = contenu.split("\n").map(l => l.trim());
-
-    return liste.includes(mot)
+  const response = await fetch("whitelist.txt")
+  const contenu = await response.text()
+  return contenu.split("\n").map(l => l.trim()).includes(mot)
 }
 
 // ── Login ──────────────────────────────────────────────────────────────────
@@ -69,7 +40,7 @@ async function login(username, password) {
   showLoading('Connexion…', username)
   $('login-error').style.display = 'none'
   try {
-    const whitelisted = await whitelist(username);
+    const whitelisted = await whitelist(username)
     if (!whitelisted) throw new Error("Accès interdit")
     const { cn, cv } = loadCnCv()
     const bodyData = cn && cv
@@ -160,6 +131,28 @@ function pf(s) {
   return isNaN(n) ? null : n
 }
 
+function round2(n) {
+  return n !== null ? Number(Math.round((n + Number.EPSILON) * 100) / 100) : null
+}
+
+function calcWeightedAvg(grades) {
+  const valid = grades.filter(g => g.normalized !== null && !g.nonSignificatif)
+  const totalCoef = valid.reduce((s, g) => s + g.coef, 0)
+  return totalCoef > 0 ? valid.reduce((s, g) => s + g.normalized * g.coef, 0) / totalCoef : null
+}
+
+function calcWeightedClassAvg(grades) {
+  const valid = grades.filter(g => g.classAvg !== null && g.outOf > 0 && !g.nonSignificatif)
+  const totalCoef = valid.reduce((s, g) => s + g.coef, 0)
+  return totalCoef > 0 ? valid.reduce((s, g) => s + (g.classAvg / g.outOf) * 20 * g.coef, 0) / totalCoef : null
+}
+
+// Moyenne simple des valeurs brutes (non arrondies) d'un groupe de matières
+function calcGroupAvg(subjects, key) {
+  const avgs = subjects.map(s => s[key]).filter(a => a !== null && a > 0)
+  return avgs.length > 0 ? round2(avgs.reduce((s, a) => s + a, 0) / avgs.length) : null
+}
+
 function parseGrades(data) {
   const notes = data.notes || []
   const periodes = (data.periodes || []).filter(p =>
@@ -169,13 +162,14 @@ function parseGrades(data) {
   const allGrades = notes.map(n => {
     const value = pf(n.valeur), outOf = pf(n.noteSur) ?? 20, coef = pf(n.coef) ?? 1
     const rawVal = String(n.valeur || '').trim()
-    const isDispensed = rawVal !== '' && value === null  // y'a quelque chose mais c'est pas un nombre
+    const isDispensed = rawVal !== '' && value === null
     return {
       name: n.devoir || '', value, outOf, coef,
       subject: n.libelleMatiere || '?',
       codeMatiere: n.codeMatiere || '',
       period: n.codePeriode || '',
-      date: n.date || '', classAvg: pf(n.moyenneClasse),
+      date: n.date || '',
+      classAvg: pf(n.moyenneClasse),
       nonSignificatif: n.nonSignificatif || false,
       isDispensed,
       rawVal,
@@ -186,7 +180,6 @@ function parseGrades(data) {
   return periodes.sort((a, b) => a.codePeriode.localeCompare(b.codePeriode)).map(p => {
     const pg = allGrades.filter(g => g.period === p.codePeriode)
 
-    // Récupérer le mapping codeMatiere → groupe depuis periodes
     const disciplines = p.ensembleMatieres?.disciplines || []
     const groupes = disciplines.filter(d => d.groupeMatiere)
     const idTronc = groupes.find(g => g.discipline === 'TRONC COMMUN')?.id
@@ -195,72 +188,43 @@ function parseGrades(data) {
     const codesTC  = new Set(disciplines.filter(d => !d.groupeMatiere && d.idGroupeMatiere === idTronc).map(d => d.codeMatiere))
     const codesOpt = new Set(disciplines.filter(d => !d.groupeMatiere && d.idGroupeMatiere === idOpt).map(d => d.codeMatiere))
 
-    // Calculer la moyenne d'une liste de notes
-    function calcAvg(grades) {
-      const valid = grades.filter(g => g.normalized !== null && !g.nonSignificatif)
-      const totalCoef = valid.reduce((s, g) => s + g.coef, 0)
-      return totalCoef > 0 ? valid.reduce((s, g) => s + g.normalized * g.coef, 0) / totalCoef : null
-    }
-
-    function calcClassAvg(grades) {
-      const valid = grades.filter(g => g.classAvg !== null && g.outOf > 0 && !g.nonSignificatif)
-      const totalCoef = valid.reduce((s, g) => s + g.coef, 0)
-      return totalCoef > 0 ? valid.reduce((s, g) => s + (g.classAvg / g.outOf) * 20 * g.coef, 0) / totalCoef : null
-    }
-
-    // Construire les sujets
-    const allSubjectNames = [...new Set(pg.map(g => g.subject))]
-    const subjects = allSubjectNames.map(name => {
+    const subjects = [...new Set(pg.map(g => g.subject))].map(name => {
       const grades = pg.filter(g => g.subject === name)
       const codeMatiere = grades[0]?.codeMatiere || ''
-      // Chercher la moyenne ED pour cette matière
-      const edDiscipline = disciplines.find(d => d.codeMatiere === codeMatiere && !d.groupeMatiere)
-      const edAverage = pf(edDiscipline?.moyenne)
+      // Bruts : utilisés pour les calculs de groupe (pas d'accumulation d'erreurs d'arrondi)
+      const averageRaw      = calcWeightedAvg(grades)
+      const classAverageRaw = calcWeightedClassAvg(grades)
       return {
         name, codeMatiere,
-        average: calcAvg(grades),
-        edAverage,   // ← moyenne telle qu'ED la stocke
-        classAverage: calcClassAvg(grades),
+        average:          round2(averageRaw),
+        classAverage:     round2(classAverageRaw),
+        averageRaw,       // interne
+        classAverageRaw,  // interne
         grades: grades.sort((a, b) => a.date.localeCompare(b.date))
       }
     }).sort((a, b) => {
-      if (a.average === null && b.average === null) return a.name.localeCompare(b.name)
-      if (a.average === null) return 1; if (b.average === null) return -1
-      return b.average - a.average
+      if (a.averageRaw === null && b.averageRaw === null) return a.name.localeCompare(b.name)
+      if (a.averageRaw === null) return 1
+      if (b.averageRaw === null) return -1
+      return b.averageRaw - a.averageRaw
     })
 
-    // Séparer TC et Options
-    const round2 = (n) => Number(Math.round((n + Number.EPSILON) * 100) / 100)
-    const tc = subjects
-      .filter(s => codesTC.has(s.codeMatiere))
-      .map(s => ({
-        ...s,
-        average: s.average !== null ? round2(s.average) : null
-      }))
-
-    const opt = subjects
-      .filter(s => codesOpt.has(s.codeMatiere))
-      .map(s => ({
-        ...s,
-        average: s.average !== null ? round2(s.average) : null
-      }))
-    const edTcMoy  = pf(disciplines.find(d => d.groupeMatiere && d.discipline === 'TRONC COMMUN')?.moyenne)
-    const edOptMoy = pf(disciplines.find(d => d.groupeMatiere && d.discipline === 'OPTIONS')?.moyenne)
-
-    // Moyenne générale sur toutes les matières (TC + opt)
-    const validAvgs = subjects.map(s => s.average).filter(a => a !== null && a > 0)
-    const generalAvg = validAvgs.length > 0 ? validAvgs.reduce((s, a) => s + a, 0) / validAvgs.length : null
+    const tc  = subjects.filter(s => codesTC.has(s.codeMatiere))
+    const opt = subjects.filter(s => codesOpt.has(s.codeMatiere))
 
     return {
       periodId: p.codePeriode,
       label: p.periode || p.codePeriode,
       isClosed: p.cloture,
-      generalAverage: generalAvg,
-      subjects,  // toutes les matières
-      tc,        // tronc commun uniquement
-      opt,      // options uniquement
-      edTcMoy,
-      edOptMoy
+      generalAverage:      calcGroupAvg(subjects, 'averageRaw'),
+      generalClassAverage: calcGroupAvg(subjects, 'classAverageRaw'),
+      tcAverage:           calcGroupAvg(tc,  'averageRaw'),
+      tcClassAverage:      calcGroupAvg(tc,  'classAverageRaw'),
+      optAverage:          calcGroupAvg(opt, 'averageRaw'),
+      optClassAverage:     calcGroupAvg(opt, 'classAverageRaw'),
+      subjects,
+      tc,
+      opt
     }
   })
 }
