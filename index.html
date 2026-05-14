@@ -11,12 +11,6 @@ fetch("./block.html", { method: "HEAD" })
   .then(r => { if (r.ok) window.location.href = "./block.html"; })
 </script>
 <style>
-@media (hover: none) {
-  .subject-row:hover .subject-main {
-    background: transparent !important;
-  }
-}
-
 :root {
   --blue:      #1565C0;
   --blue-dark: #0D47A1;
@@ -163,7 +157,6 @@ body {
 .subject-row.no-grades { cursor:default; }
 .subject-row:last-child { border-bottom:none; }
 .subject-main { display:flex; align-items:center; padding:13px 16px; gap:12px; transition:background .12s; }
-.subject-row:hover .subject-main { background:#FAFBFF; }
 .subject-bar { width:4px; height:34px; border-radius:2px; flex-shrink:0; }
 .subject-info { flex:1; min-width:0; }
 .subject-name { font-size:14px; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -171,7 +164,7 @@ body {
 .subject-class-avg { font-size:11px; color:var(--gray); margin-top:1px; }
 .subject-chevron { font-size:16px; color:var(--gray); transition:transform .2s; flex-shrink:0; }
 .subject-row.open .subject-chevron { transform:rotate(180deg); }
-.subject-row.open .subject-main { background:#FAFBFF; }
+.subject-row.open .subject-main { background:#FAFAFF; }
 .subject-avg { font-family:'Plus Jakarta Sans',sans-serif; font-size:16px; font-weight:700; flex-shrink:0; }
 
 
