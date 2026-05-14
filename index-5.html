@@ -151,14 +151,12 @@ body {
 .subjects-table { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
 .subject-row { border-bottom:1px solid var(--border); cursor:pointer; }
 .subject-row.no-grades { cursor:default; }
-/* :last-child géré dynamiquement via les séparateurs */
-.subject-group-sep { height:1px; background:var(--border); margin:4px 16px; }
+.subject-row:last-child { border-bottom:none; }
 .subject-main { display:flex; align-items:center; padding:13px 16px; gap:12px; transition:background .12s; }
 .subject-row:hover .subject-main { background:#FAFBFF; }
 .subject-bar { width:4px; height:34px; border-radius:2px; flex-shrink:0; }
 .subject-info { flex:1; min-width:0; }
 .subject-name { font-size:14px; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.subject-coef { font-size:11px; font-weight:700; color:var(--muted); background:var(--border); border-radius:5px; padding:1px 5px; margin-left:6px; flex-shrink:0; }
 .subject-class-avg { font-size:11px; color:var(--gray); margin-top:1px; }
 .subject-chevron { font-size:16px; color:var(--gray); transition:transform .2s; flex-shrink:0; }
 .subject-row.open .subject-chevron { transform:rotate(180deg); }
@@ -340,10 +338,10 @@ function renderGrades(studentName, periods) {
 }
 
 function renderPeriodPage(period) {
-  const { generalAverage, tcAverage, optAverage } = period
+  const { generalAverage, generalClassAverage, tcAverage, tcClassAverage, optAverage, optClassAverage } = period
 
-  const fmtAvg = (v) => v != null ? `${v}/20` : '—'
-
+  const fmtClass = (v) => v != null ? `Classe : ${v}` : ''
+  const fmtAvg   = (v) => v != null ? `${v}/20` : '—'
 
   let html = `
     <div class="general-avg-card" id="gen-card-${period.periodId}" onclick="toggleGenCard('${period.periodId}')" style="cursor:pointer;flex-direction:column;gap:0;position:relative">
@@ -354,48 +352,25 @@ function renderPeriodPage(period) {
           <div class="label-period">${period.label}</div>
         </div>
         <span id="gen-chevron-${period.periodId}" style="color:rgba(255,255,255,.7);font-size:18px;margin-right:8px;transition:transform .2s">⌄</span>
-        <div class="value">${fmtAvg(generalAverage)}</div>
+        <div style="text-align:right">
+          <div class="value">${fmtAvg(generalAverage)}</div>
         </div>
       </div>
       <div id="gen-detail-${period.periodId}" style="display:none;width:100%;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.2)">
         <div style="display:flex;justify-content:space-between;gap:12px">
           <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
             <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Tronc commun</div>
-            <div style="font-size:22px;font-weight:800;color:#fff">${fmtAvg(tcAverage)}</div>
+            <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">${fmtAvg(tcAverage)}</div>
           </div>
           <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
             <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Options</div>
-            <div style="font-size:22px;font-weight:800;color:#fff">${fmtAvg(optAverage)}</div>
+            <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">${fmtAvg(optAverage)}</div>
           </div>
         </div>
       </div>
     </div>`
 
-  // Grouper les matières : avec notes triées par coef, puis sans notes
-  const withGrades    = period.subjects.filter(s => s.grades.some(g => g.value !== null || g.isDispensed || g.nonSignificatif))
-  const withoutGrades = period.subjects.filter(s => !s.grades.some(g => g.value !== null || g.isDispensed || g.nonSignificatif))
-
-  // Construire les groupes de coef (matières avec notes)
-  const coefGroups = []
-  let currentCoef = null
-  withGrades.forEach(s => {
-    if (s.coefMatiere !== currentCoef) { currentCoef = s.coefMatiere; coefGroups.push([]) }
-    coefGroups[coefGroups.length - 1].push(s)
-  })
-
-  // Aplatir avec séparateurs
-  const orderedSubjects = []
-  coefGroups.forEach((group, i) => {
-    if (i > 0) orderedSubjects.push({ __sep: true })
-    group.forEach(s => orderedSubjects.push(s))
-  })
-  if (withoutGrades.length > 0) {
-    if (orderedSubjects.length > 0) orderedSubjects.push({ __sep: true })
-    withoutGrades.forEach(s => orderedSubjects.push(s))
-  }
-
-  orderedSubjects.forEach(subject => {
-    if (subject.__sep) { html += `<div class="subject-group-sep"></div>`; return }
+  period.subjects.forEach(subject => {
     const hasGrades = subject.grades.some(g => g.value !== null || g.isDispensed || g.nonSignificatif)
     const col = hasGrades ? subjectColor(subject.average, subject.classAverage) : 'gray'
     const avgDisp = hasGrades ? fmtAvg(subject.average) : '—'
@@ -406,10 +381,7 @@ function renderPeriodPage(period) {
         <div class="subject-main">
           <div class="subject-bar bar-${col}"></div>
           <div class="subject-info">
-            <div style="display:flex;align-items:center">
-              <div class="subject-name">${subject.name}</div>
-              <span class="subject-coef">×${subject.coefMatiere || 1}</span>
-            </div>
+            <div class="subject-name">${subject.name}</div>
             ${classDisp ? `<div class="subject-class-avg">${classDisp}</div>` : ''}
           </div>
           ${hasGrades ? '<span class="subject-chevron">⌄</span>' : ''}
