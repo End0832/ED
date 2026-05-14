@@ -388,7 +388,7 @@ function renderPeriodPage(period) {
     const isLastOfSameCoef =
       next &&
       next.coefMatiere !== subject.coefMatiere
-    const hasGrades = subject.average !== null
+    const hasGrades = subject.average !== null || subject.grades.some(g => g.isDispensed || g.nonSignificatif)
     const isLastWithAvg = hasGrades && next && next.average === null
     const col = hasGrades ? subjectColor(subject.average, subject.classAverage) : 'gray'
     const avgDisp = fmtAvg(subject.average)
@@ -405,7 +405,9 @@ function renderPeriodPage(period) {
             </div>
             ${classDisp ? `<div class="subject-class-avg">${classDisp}</div>` : ''}
           </div>
-          ${subject.grades.length > 0 ? '<span class="subject-chevron">⌄</span>' : ''}
+          ${subject.grades.some(g => g.value !== null || g.isDispensed || g.nonSignificatif)
+            ? '<span class="subject-chevron">⌄</span>'
+            : ''}
           <div class="subject-avg c-${col}">${avgDisp}</div>
         </div>
         <div class="subject-grades">`
