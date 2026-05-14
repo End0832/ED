@@ -221,32 +221,51 @@ function parseGrades(data) {
 
     const allSubjectsFromED = disciplines.filter(d => !d.groupeMatiere)
 
-    const subjects = allSubjectsFromED.map(d => {
+    const grouped = {}
+
+    allSubjectsFromED.forEach(d => {
       const grades = pg.filter(g => g.codeMatiere === d.codeMatiere)
 
       const coefMatiere = pf(d.coef) ?? 1
       const average = round2(calcWeightedAvg(grades))
+      const classAverage = calcWeightedClassAvg(grades)
+
       const hasValidGrade = grades.some(g =>
         g.value !== null && !g.isDispensed && !g.nonSignificatif
       )
 
-      return {
+      const subject = {
         name: d.libelle || d.discipline || d.codeMatiere,
         codeMatiere: d.codeMatiere,
         coefMatiere,
         average,
-        classAverage: calcWeightedClassAvg(grades),
+        classAverage,
         grades: grades.sort((a, b) => a.date.localeCompare(b.date)),
         noAverage: average === null || !hasValidGrade
       }
-    }).sort((a, b) => {
-      if (a.noAverage !== b.noAverage) return a.noAverage ? 1 : -1
 
-      if (b.coefMatiere !== a.coefMatiere)
-        return b.coefMatiere - a.coefMatiere
-
-      return a.name.localeCompare(b.name)
+      const key = coefMatiere
+      if (!grouped[key]) grouped[key] = []
+      grouped[key].push(subject)
     })
+
+    const subjects = Object.keys(grouped)
+      .sort((a, b) => Number(b) - Number(a)) // coef décroissant
+      .flatMap(coef => {
+        return grouped[coef].sort((a, b) => {
+          // 1) avec moyenne avant sans moyenne
+          if (a.average === null && b.average !== null) return 1
+          if (a.average !== null && b.average === null) return -1
+
+          // 2) tri par moyenne décroissante
+          if (a.average !== null && b.average !== null) {
+            return b.average - a.average
+          }
+
+          // 3) fallback nom
+          return a.name.localeCompare(b.name)
+        })
+      })
 
     const tc  = subjects.filter(s => codesTC.has(s.codeMatiere))
     const opt = subjects.filter(s => codesOpt.has(s.codeMatiere))
