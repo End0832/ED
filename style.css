@@ -1,0 +1,187 @@
+:root {
+  --blue:      #1565C0;
+  --blue-dark: #0D47A1;
+  --accent:    #00BCD4;
+  --bg:        #F0F4FF;
+  --surface:   #FFFFFF;
+  --text:      #1A1A2E;
+  --muted:     #6B7280;
+  --border:    #E8EEF9;
+  --orange:    #E65100;
+  --gray:      #9CA3AF;
+  --shadow:    0 2px 12px rgba(21,101,192,.10);
+  --shadow-lg: 0 8px 32px rgba(21,101,192,.14);
+  --radius:    16px;
+  --radius-sm: 10px;
+  --max-width: 680px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #F0F4FF;
+  min-height: 100vh;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+.screen { display: none; }
+.screen.active { display: flex; }
+
+/* ── LOGIN ── */
+#screen-login { min-height: 100vh; align-items: center; justify-content: center; padding: 24px; }
+.login-card {
+  background: var(--surface); border-radius: 24px;
+  box-shadow: var(--shadow-lg); padding: 40px 36px;
+  width: 100%; max-width: 420px; animation: fadeUp .4s ease;
+}
+.login-logo {
+  width: 72px; height: 72px; border-radius: 20px;
+  background: linear-gradient(135deg, var(--blue), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px; font-size: 32px;
+}
+.login-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; font-weight: 800; color: var(--blue-dark); text-align: center; }
+.login-sub   { font-size: 14px; color: var(--muted); text-align: center; margin-top: 4px; margin-bottom: 32px; }
+.field { margin-bottom: 16px; position: relative; }
+.field label  { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 6px; letter-spacing: .04em; text-transform: uppercase; }
+.field input {
+  width: 100%; padding: 13px 16px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif; font-size: 15px;
+  color: var(--text); background: var(--bg);
+  outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.field input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(21,101,192,.12); background: #fff; }
+.eye-btn { position: absolute; right: 12px; bottom: 11px; background: none; border: none; cursor: pointer; color: var(--gray); font-size: 18px; padding: 2px; }
+.btn-primary {
+  width: 100%; padding: 14px;
+  background: var(--blue); color: #fff; border: none; border-radius: var(--radius-sm);
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 16px; font-weight: 700;
+  cursor: pointer; margin-top: 8px;
+  transition: background .2s, transform .1s, box-shadow .2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-primary:hover    { background: var(--blue-dark); box-shadow: 0 4px 16px rgba(21,101,192,.3); }
+.btn-primary:active   { transform: scale(.98); }
+.btn-primary:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+.error-box {
+  background: rgba(229,57,53,.08); border-radius: var(--radius-sm);
+  padding: 12px 14px; margin-top: 14px;
+  color: #c62828; font-size: 13px;
+  display: flex; align-items: center; gap: 8px; animation: fadeIn .2s ease;
+}
+.login-footer { text-align: center; margin-top: 24px; font-size: 12px; color: #B0BEC5; }
+
+/* ── LOADING ── */
+#screen-loading { min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+.spinner { width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; }
+.loading-text { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 16px; font-weight: 600; color: var(--blue-dark); }
+.loading-sub  { font-size: 13px; color: var(--muted); }
+
+/* ── MFA ── */
+#screen-mfa { min-height: 100vh; align-items: center; justify-content: center; padding: 24px; }
+.mfa-card     { background: var(--surface); border-radius: 24px; box-shadow: var(--shadow-lg); padding: 36px; width: 100%; max-width: 420px; animation: fadeUp .4s ease; }
+.mfa-icon     { width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(135deg,#FF6B35,#FFB74D); display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 20px; }
+.mfa-title    { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; font-weight: 800; color: var(--blue-dark); text-align: center; margin-bottom: 4px; }
+.mfa-sub      { font-size: 14px; color: var(--muted); text-align: center; margin-bottom: 24px; }
+.mfa-question { background: #FFF8E1; border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 16px; font-size: 15px; font-weight: 500; color: #4A4A4A; display: flex; gap: 10px; }
+.mfa-options  { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+.mfa-option   { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; cursor: pointer; background: var(--surface); display: flex; align-items: center; gap: 12px; font-size: 15px; transition: all .15s; }
+.mfa-option:hover    { border-color: var(--blue); background: #EEF2FF; }
+.mfa-option.selected { background: var(--blue); border-color: var(--blue); color: #fff; }
+.mfa-radio    { width: 20px; height: 20px; border-radius: 50%; border: 2px solid currentColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mfa-option.selected .mfa-radio::after { content: ''; width: 10px; height: 10px; border-radius: 50%; background: #fff; display: block; }
+
+/* ── NOTES ── */
+#screen-grades { flex-direction: column; min-height: 100vh; }
+.grades-header       { background: var(--surface); box-shadow: var(--shadow); position: sticky; top: 0; z-index: 10; }
+.grades-header-inner { max-width: var(--max-width); margin: 0 auto; }
+.grades-header-top   { display: flex; align-items: center; padding: 14px 20px 8px; gap: 12px; }
+.grades-header-top h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 20px; font-weight: 800; color: var(--blue-dark); }
+.student-name        { font-size: 13px; color: var(--muted); }
+.btn-logout          { background: none; border: none; cursor: pointer; color: var(--gray); font-size: 20px; padding: 6px; border-radius: 8px; transition: background .15s, color .15s; }
+.btn-logout:hover    { background: var(--border); color: #c62828; }
+.btn-normalize {
+  background: none; border: 1.5px solid var(--border); cursor: pointer;
+  color: var(--muted); font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 8px;
+  transition: background .15s, color .15s, border-color .15s; white-space: nowrap;
+}
+.btn-normalize:hover  { background: var(--border); color: var(--blue); border-color: var(--blue); }
+.btn-normalize.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* Onglets de période */
+.period-tabs { display: flex; gap: 8px; padding: 0 12px 12px; }
+.period-tab {
+  flex: 1; padding: 8px 6px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; text-align: center;
+  cursor: pointer; border: none;
+  background: #EEF2FF; color: #374151;
+  transition: background .15s, color .15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.period-tab.active { background: var(--blue); color: #fff; }
+
+/* Pager (défilement horizontal entre périodes) */
+.period-pager { flex: 1; overflow: hidden; }
+.period-pages { display: flex; height: 100%; transition: transform .35s cubic-bezier(.4,0,.2,1); }
+.period-page  { min-width: 100%; overflow-y: auto; padding: 16px; }
+.period-page-inner { max-width: var(--max-width); margin: 0 auto; }
+
+/* Carte moyenne générale */
+.general-avg-card {
+  background: var(--blue); border-radius: var(--radius);
+  padding: 18px 20px; display: flex; align-items: center;
+  margin-bottom: 14px; box-shadow: 0 4px 16px rgba(21,101,192,.25);
+}
+.general-avg-card .label       { flex: 1; }
+.general-avg-card .label-title  { font-size: 13px; color: rgba(255,255,255,.8); font-weight: 500; }
+.general-avg-card .label-period { font-size: 11px; color: rgba(255,255,255,.55); }
+.general-avg-card .value        { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 30px; font-weight: 800; color: #fff; }
+
+/* Tableau des matières */
+.subjects-table { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.subject-row.coef-separator { border-bottom: 2px solid rgba(21,101,192,.18); }
+.subject-row.no-grades      { cursor: default; }
+.subject-row:last-child     { border-bottom: none; }
+.subject-main  { display: flex; align-items: center; padding: 13px 16px; gap: 12px; transition: background .12s; }
+.subject-bar   { width: 4px; height: 34px; border-radius: 2px; flex-shrink: 0; }
+.subject-info  { flex: 1; min-width: 0; }
+.subject-name  { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.subject-coef  { font-size: 11px; font-weight: 700; color: var(--muted); background: var(--border); border-radius: 5px; padding: 1px 5px; margin-left: 6px; flex-shrink: 0; }
+.subject-class-avg { font-size: 11px; color: var(--gray); margin-top: 1px; }
+.subject-chevron   { font-size: 16px; color: var(--gray); transition: transform .2s; flex-shrink: 0; }
+.subject-row.open .subject-chevron { transform: rotate(180deg); }
+.subject-row.open .subject-main    { background: #FAFAFF; }
+.subject-avg { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+
+/* Notes dépliées */
+.subject-grades { display: none; background: #F8FAFF; padding: 4px 16px 12px 32px; }
+.subject-row.open .subject-grades { display: block; }
+.grade-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed #EEF2FF; }
+.grade-row:last-child { border-bottom: none; }
+.grade-info  { flex: 1; min-width: 0; }
+.grade-name  { font-size: 12px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grade-date  { font-size: 10px; color: var(--gray); }
+.grade-coef  { font-size: 10px; color: var(--gray); flex-shrink: 0; }
+.grade-badge { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 7px; flex-shrink: 0; }
+
+/* Bascule note native / normalisée sur 20 */
+.val-norm { display: none; }
+body.normalize .val-native { display: none; }
+body.normalize .val-norm   { display: inline; }
+
+/* Couleurs sémantiques */
+.c-blue   { color: var(--blue); }
+.c-orange { color: var(--orange); }
+.c-gray   { color: var(--gray); }
+.bg-blue   { background: rgba(21,101,192,.12); }
+.bg-orange { background: rgba(230,81,0,.12); }
+.bg-gray   { background: rgba(156,163,175,.12); }
+.bar-blue   { background: var(--blue); }
+.bar-orange { background: var(--orange); }
+.bar-gray   { background: var(--gray); }
+
+@keyframes spin    { to { transform: rotate(360deg); } }
+@keyframes fadeUp  { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
