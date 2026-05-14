@@ -1,6 +1,6 @@
 {
-  "name": "EcoleDirecte",
-  "short_name": "ED Notes",
+  "name": "Notes",
+  "short_name": "Notes",
   "description": "Mes moyennes EcoleDirecte",
   "start_url": "/ED/",
   "display": "standalone",
