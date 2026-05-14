@@ -380,7 +380,9 @@ function renderPeriodPage(period) {
     const next = period.subjects[i + 1]
     const isLastOfSameCoef =
       next &&
-      next.coefMatiere !== subject.coefMatiere
+      next.coefMatiere !== subject.coefMatiere &&
+      subject.average !== null &&   // ← ajout
+      next.average !== null         // ← ajout
     const hasGrades = subject.average !== null || subject.grades.some(g => g.isDispensed || g.nonSignificatif)
     const isLastWithAvg = hasGrades && next && next.average === null
     const col = hasGrades ? subjectColor(subject.average, subject.classAverage) : 'gray'
