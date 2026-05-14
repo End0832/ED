@@ -249,23 +249,20 @@ function parseGrades(data) {
       grouped[key].push(subject)
     })
 
-    const subjects = Object.keys(grouped)
-      .sort((a, b) => Number(b) - Number(a)) // coef décroissant
-      .flatMap(coef => {
-        return grouped[coef].sort((a, b) => {
-          // 1) avec moyenne avant sans moyenne
-          if (a.average === null && b.average !== null) return 1
-          if (a.average !== null && b.average === null) return -1
+    const withAvg = Object.keys(grouped)
+      .sort((a, b) => Number(b) - Number(a))
+      .flatMap(coef =>
+        grouped[coef]
+          .filter(s => s.average !== null)
+          .sort((a, b) => b.average - a.average)
+      )
 
-          // 2) tri par moyenne décroissante
-          if (a.average !== null && b.average !== null) {
-            return b.average - a.average
-          }
+    const withoutAvg = Object.values(grouped)
+      .flat()
+      .filter(s => s.average === null)
+      .sort((a, b) => b.coefMatiere - a.coefMatiere || a.name.localeCompare(b.name))
 
-          // 3) fallback nom
-          return a.name.localeCompare(b.name)
-        })
-      })
+    const subjects = [...withAvg, ...withoutAvg]
 
     const tc  = subjects.filter(s => codesTC.has(s.codeMatiere))
     const opt = subjects.filter(s => codesOpt.has(s.codeMatiere))
