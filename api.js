@@ -116,13 +116,38 @@ async function showMfa() {
 
 // ── Notes ──────────────────────────────────────────────────────────────────
 async function loadGrades(studentId, studentName) {
-  showLoading('Chargement des notes…', studentName)
+  showLoading('Chargement des notes…', studentName);
+
   try {
-    const headers = xToken ? { 'x-token': xToken } : {}
-    const json = await apiPost(`/v3/eleves/${studentId}/notes.awp?verbe=get&v=${API_VERSION}`, { token: xToken }, headers)
-    if (json.code !== 200) throw new Error(`Erreur notes ${json.code}`)
-    renderGrades(studentName, parseGrades(json.data))
-  } catch(e) { showScreen('login'); showError('Erreur notes : ' + e.message) }
+    const headers = xToken ? { 'x-token': xToken } : {};
+    let json = "";
+
+    const r = await fetch("./notes.json", { method: "HEAD" });
+
+    if (r.ok) {
+      const res = await fetch("./notes.json");
+      const text = await res.text();
+      json = JSON.parse(text);
+    } else {
+      json = await apiPost(
+        `/v3/eleves/${studentId}/notes.awp?verbe=get&v=${API_VERSION}`,
+        { token: xToken },
+        headers
+      );
+    }
+
+    if (json.code !== 200) {
+      throw new Error(`Erreur notes ${json.code}`);
+    }
+    
+    console.log(json);
+
+    renderGrades(studentName, parseGrades(json.data));
+
+  } catch (e) {
+    showScreen('login');
+    showError('Erreur notes : ' + e.message);
+  }
 }
 
 function pf(s) {
@@ -148,8 +173,15 @@ function calcWeightedClassAvg(grades) {
 }
 
 function calcGroupAvg(subjects) {
-  const avgs = subjects.map(s => s.average).filter(a => a !== null && a > 0)
-  return avgs.length > 0 ? round2(avgs.reduce((s, a) => s + a, 0) / avgs.length) : null
+  const valid = subjects.filter(s => s.average !== null)
+
+  const totalCoef = valid.reduce((s, subj) => s + subj.coefMatiere, 0)
+
+  if (totalCoef <= 0) return null
+
+  return round2(
+    valid.reduce((s, subj) => s + subj.average * subj.coefMatiere, 0) / totalCoef
+  )
 }
 
 function parseGrades(data) {
@@ -187,25 +219,33 @@ function parseGrades(data) {
     const codesTC  = new Set(disciplines.filter(d => !d.groupeMatiere && d.idGroupeMatiere === idTronc).map(d => d.codeMatiere))
     const codesOpt = new Set(disciplines.filter(d => !d.groupeMatiere && d.idGroupeMatiere === idOpt).map(d => d.codeMatiere))
 
-    const subjects = [...new Set(pg.map(g => g.subject))].map(name => {
-      const grades = pg.filter(g => g.subject === name)
-      const codeMatiere = grades[0]?.codeMatiere || ''
-      const edDiscipline = disciplines.find(d => d.codeMatiere === codeMatiere && !d.groupeMatiere)
-      const edAverage = pf(edDiscipline?.moyenne)
+    const allSubjectsFromED = disciplines.filter(d => !d.groupeMatiere)
+
+    const subjects = allSubjectsFromED.map(d => {
+      const grades = pg.filter(g => g.codeMatiere === d.codeMatiere)
+
+      const coefMatiere = pf(d.coef) ?? 1
       const average = round2(calcWeightedAvg(grades))
+      const hasValidGrade = grades.some(g =>
+        g.value !== null && !g.isDispensed && !g.nonSignificatif
+      )
+
       return {
-        name, codeMatiere,
+        name: d.libelle || d.discipline || d.codeMatiere,
+        codeMatiere: d.codeMatiere,
+        coefMatiere,
         average,
-        edAverage,
-        differs: average !== null && edAverage !== null && average !== round2(edAverage),
         classAverage: calcWeightedClassAvg(grades),
-        grades: grades.sort((a, b) => a.date.localeCompare(b.date))
+        grades: grades.sort((a, b) => a.date.localeCompare(b.date)),
+        noAverage: average === null || !hasValidGrade
       }
     }).sort((a, b) => {
-      if (a.average === null && b.average === null) return a.name.localeCompare(b.name)
-      if (a.average === null) return 1
-      if (b.average === null) return -1
-      return b.average - a.average
+      if (a.noAverage !== b.noAverage) return a.noAverage ? 1 : -1
+
+      if (b.coefMatiere !== a.coefMatiere)
+        return b.coefMatiere - a.coefMatiere
+
+      return a.name.localeCompare(b.name)
     })
 
     const tc  = subjects.filter(s => codesTC.has(s.codeMatiere))
