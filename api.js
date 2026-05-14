@@ -32,13 +32,7 @@ async function apiPost(path, bodyObj, extraHeaders = {}) {
 async function whitelist(mot) {
   const response = await fetch("whitelist.txt")
   const contenu = await response.text()
-
-  const lignes = contenu.split("\n").map(l => l.trim())
-
-  // Si la première ligne contient "*", tout est autorisé
-  if (lignes[0] === "*") return true
-
-  return lignes.includes(mot)
+  return contenu.split("\n").map(l => l.trim()).includes(mot)
 }
 
 // ── Login ──────────────────────────────────────────────────────────────────
@@ -47,7 +41,7 @@ async function login(username, password) {
   $('login-error').style.display = 'none'
   try {
     const whitelisted = await whitelist(username)
-    if (!whitelisted) throw new Error("Vous ne faites pas partie de la liste des personnes autorisées. Contactez moi pour vous ajouter.")
+    if (!whitelisted) throw new Error("Accès interdit")
     const { cn, cv } = loadCnCv()
     const bodyData = cn && cv
       ? { identifiant: username, motdepasse: password, isRelogin: false, cn, cv, uuid: '', fa: [{ cn, cv }] }
@@ -153,9 +147,8 @@ function calcWeightedClassAvg(grades) {
   return totalCoef > 0 ? valid.reduce((s, g) => s + (g.classAvg / g.outOf) * 20 * g.coef, 0) / totalCoef : null
 }
 
-// Moyenne simple des valeurs brutes (non arrondies) d'un groupe de matières
-function calcGroupAvg(subjects, key) {
-  const avgs = subjects.map(s => s[key]).filter(a => a !== null && a > 0)
+function calcGroupAvg(subjects) {
+  const avgs = subjects.map(s => s.average).filter(a => a !== null && a > 0)
   return avgs.length > 0 ? round2(avgs.reduce((s, a) => s + a, 0) / avgs.length) : null
 }
 
@@ -197,37 +190,44 @@ function parseGrades(data) {
     const subjects = [...new Set(pg.map(g => g.subject))].map(name => {
       const grades = pg.filter(g => g.subject === name)
       const codeMatiere = grades[0]?.codeMatiere || ''
-      // Bruts : utilisés pour les calculs de groupe (pas d'accumulation d'erreurs d'arrondi)
-      const averageRaw      = calcWeightedAvg(grades)
-      const classAverageRaw = calcWeightedClassAvg(grades)
+      const edDiscipline = disciplines.find(d => d.codeMatiere === codeMatiere && !d.groupeMatiere)
+      const edAverage = pf(edDiscipline?.moyenne)
+      const average = round2(calcWeightedAvg(grades))
       return {
         name, codeMatiere,
-        average:          round2(averageRaw),
-        classAverage:     round2(classAverageRaw),
-        averageRaw,       // interne
-        classAverageRaw,  // interne
+        average,
+        edAverage,
+        differs: average !== null && edAverage !== null && average !== round2(edAverage),
+        classAverage: calcWeightedClassAvg(grades),
         grades: grades.sort((a, b) => a.date.localeCompare(b.date))
       }
     }).sort((a, b) => {
-      if (a.averageRaw === null && b.averageRaw === null) return a.name.localeCompare(b.name)
-      if (a.averageRaw === null) return 1
-      if (b.averageRaw === null) return -1
-      return b.averageRaw - a.averageRaw
+      if (a.average === null && b.average === null) return a.name.localeCompare(b.name)
+      if (a.average === null) return 1
+      if (b.average === null) return -1
+      return b.average - a.average
     })
 
     const tc  = subjects.filter(s => codesTC.has(s.codeMatiere))
     const opt = subjects.filter(s => codesOpt.has(s.codeMatiere))
 
+    const edTcMoy  = round2(pf(disciplines.find(d => d.groupeMatiere && d.discipline === 'TRONC COMMUN')?.moyenne))
+    const edOptMoy = round2(pf(disciplines.find(d => d.groupeMatiere && d.discipline === 'OPTIONS')?.moyenne))
+
+    const tcAverage  = calcGroupAvg(tc)
+    const optAverage = calcGroupAvg(opt)
+
     return {
       periodId: p.codePeriode,
       label: p.periode || p.codePeriode,
       isClosed: p.cloture,
-      generalAverage:      calcGroupAvg(subjects, 'averageRaw'),
-      generalClassAverage: calcGroupAvg(subjects, 'classAverageRaw'),
-      tcAverage:           calcGroupAvg(tc,  'averageRaw'),
-      tcClassAverage:      calcGroupAvg(tc,  'classAverageRaw'),
-      optAverage:          calcGroupAvg(opt, 'averageRaw'),
-      optClassAverage:     calcGroupAvg(opt, 'classAverageRaw'),
+      generalAverage: calcGroupAvg(subjects),
+      tcAverage,
+      optAverage,
+      tcDiffers:  tcAverage  !== null && edTcMoy  !== null && tcAverage  !== edTcMoy,
+      optDiffers: optAverage !== null && edOptMoy !== null && optAverage !== edOptMoy,
+      edTcMoy,
+      edOptMoy,
       subjects,
       tc,
       opt
