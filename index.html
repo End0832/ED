@@ -343,10 +343,10 @@ function renderGrades(studentName, periods) {
 }
 
 function renderPeriodPage(period) {
-  const { generalAverage, tcAverage, optAverage } = period
+  const { generalAverage, generalClassAverage, tcAverage, tcClassAverage, optAverage, optClassAverage } = period
 
-  const fmtAvg = (v) => v != null ? `${v}/20` : '—'
-
+  const fmtClass = (v) => v != null ? `Classe : ${v}` : ''
+  const fmtAvg   = (v) => v != null ? `${v}/20` : '—'
 
   let html = `
     <div class="general-avg-card" id="gen-card-${period.periodId}" onclick="toggleGenCard('${period.periodId}')" style="cursor:pointer;flex-direction:column;gap:0;position:relative">
@@ -357,18 +357,19 @@ function renderPeriodPage(period) {
           <div class="label-period">${period.label}</div>
         </div>
         <span id="gen-chevron-${period.periodId}" style="color:rgba(255,255,255,.7);font-size:18px;margin-right:8px;transition:transform .2s">⌄</span>
-        <div class="value">${fmtAvg(generalAverage)}</div>
+        <div style="text-align:right">
+          <div class="value">${fmtAvg(generalAverage)}</div>
         </div>
       </div>
       <div id="gen-detail-${period.periodId}" style="display:none;width:100%;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.2)">
         <div style="display:flex;justify-content:space-between;gap:12px">
           <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
             <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Tronc commun</div>
-            <div style="font-size:22px;font-weight:800;color:#fff">${fmtAvg(tcAverage)}</div>
+            <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">${fmtAvg(tcAverage)}</div>
           </div>
           <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
             <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Options</div>
-            <div style="font-size:22px;font-weight:800;color:#fff">${fmtAvg(optAverage)}</div>
+            <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">${fmtAvg(optAverage)}</div>
           </div>
         </div>
       </div>
