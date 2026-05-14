@@ -382,8 +382,10 @@ function renderPeriodPage(period) {
         <div class="subject-main">
           <div class="subject-bar bar-${col}"></div>
           <div class="subject-info">
-            <div class="subject-name">${subject.name}</div>
-            <span class="subject-coef">×${subject.coefMatiere || 1}</span>
+            <div style="display:flex;align-items:center">
+              <div class="subject-name">${subject.name}</div>
+              <span class="subject-coef">×${subject.coefMatiere || 1}</span>
+            </div>
             ${classDisp ? `<div class="subject-class-avg">${classDisp}</div>` : ''}
           </div>
           ${hasGrades ? '<span class="subject-chevron">⌄</span>' : ''}
