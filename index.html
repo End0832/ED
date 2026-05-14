@@ -11,6 +11,12 @@ fetch("./block.html", { method: "HEAD" })
   .then(r => { if (r.ok) window.location.href = "./block.html"; })
 </script>
 <style>
+@media (hover: none) {
+  .subject-row:hover .subject-main {
+    background: transparent !important;
+  }
+}
+
 :root {
   --blue:      #1565C0;
   --blue-dark: #0D47A1;
@@ -153,7 +159,7 @@ body {
 
 /* Tableau matières */
 .subjects-table { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
-.subject-row { border-bottom:1px solid var(--border); cursor:pointer; }
+.subject-row.coef-separator { border-bottom: 2px solid rgba(21, 101, 192, 0.18); }
 .subject-row.no-grades { cursor:default; }
 .subject-row:last-child { border-bottom:none; }
 .subject-main { display:flex; align-items:center; padding:13px 16px; gap:12px; transition:background .12s; }
@@ -165,7 +171,9 @@ body {
 .subject-class-avg { font-size:11px; color:var(--gray); margin-top:1px; }
 .subject-chevron { font-size:16px; color:var(--gray); transition:transform .2s; flex-shrink:0; }
 .subject-row.open .subject-chevron { transform:rotate(180deg); }
+.subject-row.open .subject-main { background:#FAFBFF; }
 .subject-avg { font-family:'Plus Jakarta Sans',sans-serif; font-size:16px; font-weight:700; flex-shrink:0; }
+
 
 /* Notes dépliées */
 .subject-grades { display:none; background:#F8FAFF; padding:4px 16px 12px 32px; }
@@ -375,14 +383,19 @@ function renderPeriodPage(period) {
       </div>
     </div>`
 
-  period.subjects.forEach(subject => {
-    const hasGrades = subject.grades.some(g => g.value !== null || g.isDispensed || g.nonSignificatif)
+  period.subjects.forEach((subject, i) => {
+    const next = period.subjects[i + 1]
+    const isLastOfSameCoef =
+      next &&
+      next.coefMatiere !== subject.coefMatiere
+    const hasGrades = subject.average !== null
+    const isLastWithAvg = hasGrades && next && next.average === null
     const col = hasGrades ? subjectColor(subject.average, subject.classAverage) : 'gray'
-    const avgDisp = hasGrades ? fmtAvg(subject.average) : '—'
+    const avgDisp = fmtAvg(subject.average)
     const classDisp = hasGrades && subject.classAverage !== null ? `Classe : ${subject.classAverage.toFixed(1)}` : ''
 
     html += `
-      <div class="subject-row${hasGrades ? '' : ' no-grades'}">
+      <div class="subject-row${hasGrades ? '' : ' no-grades'}${isLastOfSameCoef ? ' coef-separator' : ''}${isLastWithAvg ? ' coef-separator' : ''}">
         <div class="subject-main">
           <div class="subject-bar bar-${col}"></div>
           <div class="subject-info">
@@ -392,7 +405,7 @@ function renderPeriodPage(period) {
             </div>
             ${classDisp ? `<div class="subject-class-avg">${classDisp}</div>` : ''}
           </div>
-          ${hasGrades ? '<span class="subject-chevron">⌄</span>' : ''}
+          ${subject.grades.length > 0 ? '<span class="subject-chevron">⌄</span>' : ''}
           <div class="subject-avg c-${col}">${avgDisp}</div>
         </div>
         <div class="subject-grades">`
