@@ -117,6 +117,7 @@ body {
   font-size: 13px; font-weight: 600; text-align: center;
   cursor: pointer; border: none;
   background: #EEF2FF; color: #374151;
+  transition: background .15s, color .15s;
   font-family: 'DM Sans', sans-serif;
 }
 .period-tab.active { background: var(--blue); color: #fff; }
