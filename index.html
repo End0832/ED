@@ -231,7 +231,12 @@ function renderPeriodPage(period) {
               <div class="subject-name">${subject.name}</div>
               <span class="subject-coef">×${subject.coefMatiere || 1}</span>
             </div>
-            ${classDisplay ? `<div class="subject-class-avg">${classDisplay}</div>` : ''}
+            ${grade.classAvg !== null ? `
+              <div class="grade-class-average">
+                Classe :
+                <span class="val-native">${grade.classAvg}</span>
+                <span class="val-norm">${parseFloat(((grade.classAvg / grade.outOf) * 20).toFixed(2))}</span>
+              </div>` : ''}
           </div>
           ${subject.grades.some(g => g.value !== null || g.isDispensed || g.nonSignificatif)
             ? '<span class="subject-chevron">⌄</span>'
