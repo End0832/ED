@@ -255,7 +255,7 @@ function renderPeriodPage(period) {
         <div class="grade-row">
           <div class="grade-info">
             <div class="grade-name">${grade.name || 'Devoir'}</div>
-            ${grade.date ? `<div class="grade-date">${grade.date}</div>` : ''}
+            ${grade.classAverage ? `<div class="grade-class-average">${grade.classAverage}</div>` : ''}
           </div>
           ${coefLabel ? `<div class="grade-coef">${coefLabel}</div>` : ''}
           ${grade.isDispensed
