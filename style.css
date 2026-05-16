@@ -162,7 +162,7 @@ body {
 .grade-row:last-child { border-bottom: none; }
 .grade-info  { flex: 1; min-width: 0; }
 .grade-name  { font-size: 12px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.grade-date  { font-size: 10px; color: var(--gray); }
+.grade-class-average  { font-size: 10px; color: var(--gray); }
 .grade-coef  { font-size: 10px; color: var(--gray); flex-shrink: 0; }
 .grade-badge { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 7px; flex-shrink: 0; }
 
