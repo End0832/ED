@@ -63,6 +63,7 @@ async function login(username, password) {
     const json = await apiPost(`/v3/login.awp?v=${API_VERSION}`, loginBody)
 
     if (json.code === 505) throw new Error('Identifiants invalides')
+    if (json.code === 429) throw new Error("API quota dépassé")
     if (json.code !== 200 && json.code !== 250) throw new Error(`Erreur API ${json.code}`)
 
     saveCredentials(username, password)
