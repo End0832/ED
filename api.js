@@ -1,4 +1,4 @@
-const API_PROXY   = 'https://icy-night-46e3.end-b76.workers.dev'
+const API_PROXY   = 'https://notes.end-b76.workers.dev'
 const API_VERSION = '4.90.1'
 
 let xToken          = null
