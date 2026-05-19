@@ -35,7 +35,8 @@ async function apiPost(path, body, extraHeaders = {}) {
   const token = res.headers.get('x-token')
   if (token) xToken = token
   const text = await res.text()
-  try { const parsedText = JSON.parse(text) }
+  let parsedText = null
+  try { parsedText = JSON.parse(text) }
   catch (e) { throw new Error('Réponse non-JSON : ' + text.slice(0, 100)) }
   if (parsedText.code === 429) throw new Error("API quota dépassé")
   return parsedText
