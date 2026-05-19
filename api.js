@@ -42,6 +42,13 @@ async function apiPost(path, body, extraHeaders = {}) {
   return parsedText
 }
 
+// ── Décodage de requête ────────────────────────────────────────────────────
+function decodeBase64UTF8(str) {
+  return decodeURIComponent(
+    atob(str).split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+  )
+}
+
 // ── Liste blanche ──────────────────────────────────────────────────────────
 async function isWhitelisted(username) {
   const res     = await fetch('whitelist.txt')
@@ -92,9 +99,9 @@ async function showMfa() {
     const json = await apiPost(`/v3/connexion/doubleauth.awp?verbe=get&v=${API_VERSION}`, {}, headers)
     if (!json.data) throw new Error('Réponse MFA invalide')
 
-    $('mfa-question-text').textContent = atob(json.data.question)
+    $('mfa-question-text').textContent = decodeBase64UTF8(json.data.question)
 
-    const options   = json.data.propositions.map(p => atob(p))
+    const options   = json.data.propositions.map(p => decodeBase64UTF8(p))
     const container = $('mfa-options')
     container.innerHTML = ''
     let selectedAnswer = null
