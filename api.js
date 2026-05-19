@@ -35,8 +35,10 @@ async function apiPost(path, body, extraHeaders = {}) {
   const token = res.headers.get('x-token')
   if (token) xToken = token
   const text = await res.text()
-  try { return JSON.parse(text) }
+  try { const parsedText = JSON.parse(text) }
   catch (e) { throw new Error('Réponse non-JSON : ' + text.slice(0, 100)) }
+  if (parsedText.code === 429) throw new Error("API quota dépassé")
+  return parsedText
 }
 
 // ── Liste blanche ──────────────────────────────────────────────────────────
@@ -63,7 +65,6 @@ async function login(username, password) {
     const json = await apiPost(`/v3/login.awp?v=${API_VERSION}`, loginBody)
 
     if (json.code === 505) throw new Error('Identifiants invalides')
-    if (json.code === 429) throw new Error("API quota dépassé")
     if (json.code !== 200 && json.code !== 250) throw new Error(`Erreur API ${json.code}`)
 
     saveCredentials(username, password)
