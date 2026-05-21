@@ -255,11 +255,17 @@ function renderPeriodPage(period) {
         <div class="grade-row">
           <div class="grade-info">
             <div class="grade-name">${grade.name || 'Devoir'}</div>
-            ${grade.classAvg !== null ? `
+            ${grade.classAvg !== null && grade.classMin !== null && grade.classMax !== null ? `
               <div class="grade-class-average">
                 Classe :
                 <span class="val-native">${grade.classAvg}</span>
                 <span class="val-norm">${parseFloat(((grade.classAvg / grade.outOf) * 20).toFixed(2))}</span>
+                Min :
+                <span class="val-native">${grade.classMin}</span>
+                <span class="val-norm">${parseFloat(((grade.classMin / grade.outOf) * 20).toFixed(2))}</span>
+                Max :
+                <span class="val-native">${grade.classMax}</span>
+                <span class="val-norm">${parseFloat(((grade.classMax / grade.outOf) * 20).toFixed(2))}</span>
               </div>` : ''}
           </div>
           ${coefLabel ? `<div class="grade-coef">${coefLabel}</div>` : ''}
