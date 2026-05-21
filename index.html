@@ -257,13 +257,13 @@ function renderPeriodPage(period) {
             <div class="grade-name">${grade.name || 'Devoir'}</div>
             ${grade.classAvg !== null && grade.classMin !== null && grade.classMax !== null ? `
               <div class="grade-class-average">
-                <b>Moy :</b>
+                Moy :
                 <span class="val-native">${grade.classAvg}</span>
                 <span class="val-norm">${parseFloat(((grade.classAvg / grade.outOf) * 20).toFixed(2))}</span>
-                <b>Min :</b>
+                | Min :
                 <span class="val-native">${grade.classMin}</span>
                 <span class="val-norm">${parseFloat(((grade.classMin / grade.outOf) * 20).toFixed(2))}</span>
-                <b>Max :</b>
+                | Max :
                 <span class="val-native">${grade.classMax}</span>
                 <span class="val-norm">${parseFloat(((grade.classMax / grade.outOf) * 20).toFixed(2))}</span>
               </div>` : ''}
