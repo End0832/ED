@@ -251,6 +251,8 @@ function parseGrades(data) {
       period:          note.codePeriode || '',
       date:            note.date || '',
       classAvg:        parseFloat2(note.moyenneClasse),
+      classMin:        parseFloat2(note.minClasse),
+      classMax:        parseFloat2(note.maxClasse),
       nonSignificatif: note.nonSignificatif || false,
       isDispensed:     rawVal !== '' && value === null,
       rawVal,
