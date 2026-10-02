@@ -248,6 +248,7 @@ function parseGrades(data) {
       outOf,
       coef:            parseFloat2(note.coef) ?? 1,
       codeMatiere:     note.codeMatiere || '',
+      codeSousMatiere: note.codeSousMatiere || '',
       period:          note.codePeriode || '',
       date:            note.date || '',
       classAvg:        parseFloat2(note.moyenneClasse),
@@ -266,28 +267,41 @@ function parseGrades(data) {
       const periodGrades = allGrades.filter(g => g.period === period.codePeriode)
       const disciplines  = period.ensembleMatieres?.disciplines || []
 
-      // Identification des groupes "Tronc commun" et "Options"
-      const groups        = disciplines.filter(d => d.groupeMatiere)
-      const idTroncCommun = groups.find(g => g.discipline === 'TRONC COMMUN')?.id
-      const idOptions     = groups.find(g => g.discipline === 'OPTIONS')?.id
+      // Groupes (Tronc commun, Spécialités, Options…) : détectés dynamiquement
+      const groups = disciplines.filter(d => d.groupeMatiere)
+      const codesByGroup = {}
+      disciplines
+        .filter(d => !d.groupeMatiere && !d.sousMatiere)
+        .forEach(d => {
+          (codesByGroup[d.idGroupeMatiere] ||= new Set()).add(d.codeMatiere)
+        })
 
-      const codesTroncCommun = new Set(
-        disciplines
-          .filter(d => !d.groupeMatiere && d.idGroupeMatiere === idTroncCommun)
-          .map(d => d.codeMatiere)
-      )
-      const codesOptions = new Set(
-        disciplines
-          .filter(d => !d.groupeMatiere && d.idGroupeMatiere === idOptions)
-          .map(d => d.codeMatiere)
-      )
+      // Sous-matières (ex. Physique-Chimie → Évaluations écrites / expérimentales)
+      const subDisciplines = disciplines.filter(d => !d.groupeMatiere && d.sousMatiere)
+      const buildSub = d => {
+        const grades = periodGrades.filter(g =>
+          g.codeMatiere === d.codeMatiere && g.codeSousMatiere === d.codeSousMatiere)
+        return {
+          name:         d.libelle || d.discipline || d.codeSousMatiere,
+          coefMatiere:  parseFloat2(d.coef) ?? 1,
+          average:      round2(calcSubjectAverage(grades)),
+          classAverage: calcSubjectClassAverage(grades),
+        }
+      }
 
       // Construction des matières, groupées par coef pour tri ultérieur
       const byCoef = {}
-      disciplines.filter(d => !d.groupeMatiere).forEach(discipline => {
+      disciplines.filter(d => !d.groupeMatiere && !d.sousMatiere).forEach(discipline => {
         const grades      = periodGrades.filter(g => g.codeMatiere === discipline.codeMatiere)
         const coefMatiere = parseFloat2(discipline.coef) ?? 1
-        const average     = round2(calcSubjectAverage(grades))
+        const subs        = subDisciplines
+          .filter(s => s.codeMatiere === discipline.codeMatiere)
+          .map(buildSub)
+
+        // Avec sous-matières : moyenne = moyenne des sous-matières pondérée par leur coef
+        const average = subs.some(s => s.average !== null)
+          ? calcGroupAverage(subs)
+          : round2(calcSubjectAverage(grades))
 
         const subject = {
           name:         discipline.libelle || discipline.discipline || discipline.codeMatiere,
@@ -295,6 +309,7 @@ function parseGrades(data) {
           coefMatiere,
           average,
           classAverage: calcSubjectClassAverage(grades),
+          subs:         subs.filter(s => s.average !== null),
           grades:       grades.sort((a, b) => a.date.localeCompare(b.date)),
         }
 
@@ -323,8 +338,12 @@ function parseGrades(data) {
         label:          period.periode || period.codePeriode,
         isClosed:       period.cloture,
         generalAverage: calcGroupAverage(subjects),
-        tcAverage:      calcGroupAverage(subjects.filter(s => codesTroncCommun.has(s.codeMatiere))),
-        optAverage:     calcGroupAverage(subjects.filter(s => codesOptions.has(s.codeMatiere))),
+        groupAverages:  groups
+          .map(g => ({
+            label:   g.discipline,
+            average: calcGroupAverage(subjects.filter(s => codesByGroup[g.id]?.has(s.codeMatiere))),
+          }))
+          .filter(g => g.average !== null),
         subjects,
       }
     })
