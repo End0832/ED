@@ -168,7 +168,7 @@ function renderGrades(studentName, periods) {
 }
 
 function renderPeriodPage(period) {
-  const { generalAverage, tcAverage, optAverage } = period
+  const { generalAverage, groupAverages } = period
 
   const fmtAvg = v => v != null ? `${v}/20` : '—'
 
@@ -189,15 +189,12 @@ function renderPeriodPage(period) {
       </div>
       <div id="gen-detail-${period.periodId}"
            style="display:none;width:100%;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.2)">
-        <div style="display:flex;justify-content:space-between;gap:12px">
-          <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
-            <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Tronc commun</div>
-            <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">${fmtAvg(tcAverage)}</div>
-          </div>
-          <div style="flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
-            <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Options</div>
-            <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">${fmtAvg(optAverage)}</div>
-          </div>
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px">
+          ${groupAverages.map(g => `
+          <div style="flex:1;min-width:90px;background:rgba(255,255,255,.12);border-radius:10px;padding:12px">
+            <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">${g.label}</div>
+            <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">${fmtAvg(g.average)}</div>
+          </div>`).join('')}
         </div>
       </div>
     </div>`
@@ -238,7 +235,13 @@ function renderPeriodPage(period) {
             : ''}
           <div class="subject-avg c-${color}">${avgDisplay}</div>
         </div>
-        <div class="subject-grades">`
+        <div class="subject-grades">
+        ${(subject.subs || []).map(s => `
+          <div class="grade-row">
+            <div class="grade-info"><div class="grade-name">↳ ${s.name}</div></div>
+            <div class="grade-coef">×${s.coefMatiere}</div>
+            <div class="grade-badge c-gray bg-gray">${fmtAvg(s.average)}</div>
+          </div>`).join('')}`
 
     const visibleGrades = subject.grades.filter(g => g.value !== null || g.isDispensed || g.nonSignificatif)
 
