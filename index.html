@@ -167,6 +167,62 @@ function renderGrades(studentName, periods) {
   showScreen('grades')
 }
 
+/** Une ligne de note. */
+function renderGradeRow(grade) {
+    // Couleur de la note : comparée à la moyenne de classe de CE devoir (ramenée sur 20)
+    const classAvgNormalized = grade.classAvg !== null && grade.outOf > 0
+      ? (grade.classAvg / grade.outOf) * 20
+      : null
+    const gradeCol   = gradeColor(grade.normalized, classAvgNormalized)
+    const coefLabel  = grade.coef !== 1 ? `×${Number.isInteger(grade.coef) ? grade.coef : grade.coef}` : ''
+    const outOfLabel = grade.outOf % 1 === 0 ? grade.outOf : grade.outOf.toFixed(1)
+
+    return `
+      <div class="grade-row">
+        <div class="grade-info">
+          <div class="grade-name">${grade.name || 'Devoir'}</div>
+          ${grade.classAvg !== null && grade.classMin !== null && grade.classMax !== null ? `
+            <div class="grade-class-average">
+              Moy :
+              <span class="val-native">${grade.classAvg}</span>
+              <span class="val-norm">${parseFloat(((grade.classAvg / grade.outOf) * 20).toFixed(2))}</span>
+              | Min :
+              <span class="val-native">${grade.classMin}</span>
+              <span class="val-norm">${parseFloat(((grade.classMin / grade.outOf) * 20).toFixed(2))}</span>
+              | Max :
+              <span class="val-native">${grade.classMax}</span>
+              <span class="val-norm">${parseFloat(((grade.classMax / grade.outOf) * 20).toFixed(2))}</span>
+            </div>` : ''}
+        </div>
+        ${coefLabel ? `<div class="grade-coef">${coefLabel}</div>` : ''}
+        ${grade.isDispensed
+          ? `<div class="grade-badge c-gray bg-gray">${grade.rawVal || 'Disp.'}</div>`
+          : grade.nonSignificatif
+            ? `<div class="grade-badge c-gray bg-gray">(<span class="val-native">${parseFloat(grade.value.toFixed(2))}/${outOfLabel}</span><span class="val-norm">${grade.normalized !== null ? parseFloat(grade.normalized.toFixed(2)) : '?'}</span>)</div>`
+            : `<div class="grade-badge c-${gradeCol} bg-${gradeCol}"><span class="val-native">${parseFloat(grade.value.toFixed(2))}/${outOfLabel}</span><span class="val-norm">${grade.normalized !== null ? parseFloat(grade.normalized.toFixed(2)) : '?'}</span></div>`
+        }
+      </div>`
+
+}
+
+/** Notes d'une matière : en paquets par professeur si plusieurs professeurs, sinon liste simple. */
+function renderGradesByTeacher(grades) {
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  if (new Set(grades.map(g => g.teacher)).size <= 1) return grades.map(renderGradeRow).join('')
+
+  // Tri par date : l'ordre d'insertion de la Map = ordre de la plus ancienne note de chaque prof
+  const groups = new Map()
+  ;[...grades].sort((x, y) => x.date.localeCompare(y.date)).forEach(g => {
+    if (!groups.has(g.teacher)) groups.set(g.teacher, [])
+    groups.get(g.teacher).push(g)
+  })
+  return [...groups].map(([teacher, gs]) => `
+    <div class="teacher-box">
+      <span class="teacher-name">${esc(teacher || 'Professeur inconnu')}</span>
+      ${gs.map(renderGradeRow).join('')}
+    </div>`).join('')
+}
+
 function renderPeriodPage(period) {
   const { generalAverage, groupAverages } = period
 
@@ -245,41 +301,7 @@ function renderPeriodPage(period) {
 
     const visibleGrades = subject.grades.filter(g => g.value !== null || g.isDispensed || g.nonSignificatif)
 
-    visibleGrades.forEach(grade => {
-      // Couleur de la note : comparée à la moyenne de classe de CE devoir (ramenée sur 20)
-      const classAvgNormalized = grade.classAvg !== null && grade.outOf > 0
-        ? (grade.classAvg / grade.outOf) * 20
-        : null
-      const gradeCol   = gradeColor(grade.normalized, classAvgNormalized)
-      const coefLabel  = grade.coef !== 1 ? `×${Number.isInteger(grade.coef) ? grade.coef : grade.coef}` : ''
-      const outOfLabel = grade.outOf % 1 === 0 ? grade.outOf : grade.outOf.toFixed(1)
-
-      html += `
-        <div class="grade-row">
-          <div class="grade-info">
-            <div class="grade-name">${grade.name || 'Devoir'}</div>
-            ${grade.classAvg !== null && grade.classMin !== null && grade.classMax !== null ? `
-              <div class="grade-class-average">
-                Moy :
-                <span class="val-native">${grade.classAvg}</span>
-                <span class="val-norm">${parseFloat(((grade.classAvg / grade.outOf) * 20).toFixed(2))}</span>
-                | Min :
-                <span class="val-native">${grade.classMin}</span>
-                <span class="val-norm">${parseFloat(((grade.classMin / grade.outOf) * 20).toFixed(2))}</span>
-                | Max :
-                <span class="val-native">${grade.classMax}</span>
-                <span class="val-norm">${parseFloat(((grade.classMax / grade.outOf) * 20).toFixed(2))}</span>
-              </div>` : ''}
-          </div>
-          ${coefLabel ? `<div class="grade-coef">${coefLabel}</div>` : ''}
-          ${grade.isDispensed
-            ? `<div class="grade-badge c-gray bg-gray">${grade.rawVal || 'Disp.'}</div>`
-            : grade.nonSignificatif
-              ? `<div class="grade-badge c-gray bg-gray">(<span class="val-native">${parseFloat(grade.value.toFixed(2))}/${outOfLabel}</span><span class="val-norm">${grade.normalized !== null ? parseFloat(grade.normalized.toFixed(2)) : '?'}</span>)</div>`
-              : `<div class="grade-badge c-${gradeCol} bg-${gradeCol}"><span class="val-native">${parseFloat(grade.value.toFixed(2))}/${outOfLabel}</span><span class="val-norm">${grade.normalized !== null ? parseFloat(grade.normalized.toFixed(2)) : '?'}</span></div>`
-          }
-        </div>`
-    })
+    html += renderGradesByTeacher(visibleGrades)
 
     html += `</div></div>`
   })
@@ -344,8 +366,12 @@ function toggleGenCard(periodId) {
 }
 
 window.addEventListener('load', () => {
-  const creds = loadCredentials()
-  if (creds) login(creds.username, creds.password)
+  localStorage.removeItem('ed_p')   // purge d'un ancien mot de passe stocké
+  const username = loadUsername()
+  if (username) {
+    $('input-username').value = username
+    if (!resumeSession()) $('input-password').focus()   // reprise de la session enregistrée
+  }
 })
 
 if ('serviceWorker' in navigator) {
