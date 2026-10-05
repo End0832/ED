@@ -1,18 +1,17 @@
 const API_PROXY   = 'https://notes.end-b76.workers.dev'
-const API_VERSION = '4.90.1'
+const API_VERSION = '4.101.4'
 
 let xToken          = null
+let twoFaToken      = null   // en-tête 2FA-Token renvoyé par ED (à renvoyer à chaque appel)
+let xSession        = null   // cookie GTK + x-gtk renvoyés par le worker au login
 let pendingMfaCreds = null
 
 // ── Persistance locale ─────────────────────────────────────────────────────
-function saveCredentials(username, password) {
+function saveUsername(username) {
   localStorage.setItem('ed_u', username)
-  localStorage.setItem('ed_p', password)
 }
-function loadCredentials() {
-  const username = localStorage.getItem('ed_u')
-  const password = localStorage.getItem('ed_p')
-  return username && password ? { username, password } : null
+function loadUsername() {
+  return localStorage.getItem('ed_u') || ''
 }
 function saveDeviceTokens(cn, cv) {
   localStorage.setItem('ed_cn', cn)
@@ -21,39 +20,79 @@ function saveDeviceTokens(cn, cv) {
 function loadDeviceTokens() {
   return { cn: localStorage.getItem('ed_cn'), cv: localStorage.getItem('ed_cv') }
 }
+/** Session en cours : dernier x-token (il change à chaque réponse), session worker, 2FA-Token. */
+function saveSession() {
+  if (!xToken) return
+  localStorage.setItem('ed_s', JSON.stringify({ t: xToken, s: xSession, f: twoFaToken }))
+}
+function clearSession() {
+  localStorage.removeItem('ed_s')
+}
+/** Reprend la session enregistrée. Retourne false s'il n'y en a pas. */
+function resumeSession() {
+  try {
+    const s   = JSON.parse(localStorage.getItem('ed_s') || 'null')
+    const acc = JSON.parse(localStorage.getItem('ed_acc') || 'null')
+    if (!s?.t || !acc?.id) return false
+    xToken = s.t; xSession = s.s; twoFaToken = s.f
+    loadGrades(acc.id, acc.name, true)
+    return true
+  } catch (e) { return false }
+}
+
+/** Déconnexion : efface identifiant et session. Les jetons d'appareil (cn/cv) sont conservés
+ *  pour ne pas redéclencher la double authentification à chaque connexion. */
 function clearStorage() {
-  ;['ed_u', 'ed_p', 'ed_cn', 'ed_cv'].forEach(k => localStorage.removeItem(k))
+  localStorage.removeItem('ed_u')
+  localStorage.removeItem('ed_s')
+  localStorage.removeItem('ed_acc')
+  localStorage.removeItem('ed_at')     // anciens stockages : nettoyage
+  localStorage.removeItem('ed_uuid')
+  localStorage.removeItem('ed_p')   // ancien stockage du mot de passe : nettoyage
+  xSession   = null
+  twoFaToken = null
 }
 
 // ── Requête API ────────────────────────────────────────────────────────────
 async function apiPost(path, body, extraHeaders = {}) {
+  const headers = { 'Content-Type': 'text/plain', ...extraHeaders }
+  // Le login ouvre une nouvelle session ; tous les autres appels réutilisent la précédente
+  if (xSession && !path.includes('/login.awp')) headers['x-session'] = xSession
+  if (twoFaToken) headers['2fa-token'] = twoFaToken
   const res = await fetch(`${API_PROXY}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain', ...extraHeaders },
+    headers,
     body: 'data=' + JSON.stringify(body),
   })
   const token = res.headers.get('x-token')
   if (token) xToken = token
+  const tfa = res.headers.get('2fa-token')
+  if (tfa) twoFaToken = tfa
+  const session = res.headers.get('x-session')
+  if (session) xSession = session
   const text = await res.text()
   let parsedText = null
   try { parsedText = JSON.parse(text) }
   catch (e) { throw new Error('Réponse non-JSON : ' + text.slice(0, 100)) }
   if (parsedText.code === 429) throw new Error("API quota dépassé")
+  // Le token peut aussi être dans le corps JSON (pas seulement dans l'en-tête x-token)
+  if (!token && parsedText.token) xToken = parsedText.token
+  saveSession()
   return parsedText
 }
 
 // ── Décodage de requête ────────────────────────────────────────────────────
 function decodeBase64UTF8(str) {
-  return decodeURIComponent(
-    atob(str).split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
-  )
-}
-
-// ── Liste blanche ──────────────────────────────────────────────────────────
-async function isWhitelisted(username) {
-  const res     = await fetch('whitelist.txt')
-  const content = await res.text()
-  return content.split('\n').map(l => l.trim()).includes(username)
+  if (typeof str !== 'string') return String(str ?? '')
+  // Tolère base64 URL-safe, espaces/retours à la ligne et padding manquant
+  let b64 = str.trim().replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/')
+  b64 += '='.repeat((4 - (b64.length % 4)) % 4)
+  try {
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch (e) {
+    return str // pas du base64 valide : on suppose que le texte est déjà en clair
+  }
 }
 
 // ── Connexion ──────────────────────────────────────────────────────────────
@@ -62,9 +101,6 @@ async function login(username, password) {
   $('login-error').style.display = 'none'
 
   try {
-    const allowed = await isWhitelisted(username)
-    if (!allowed) throw new Error('Accès interdit')
-
     const { cn, cv } = loadDeviceTokens()
     const loginBody = cn && cv
       ? { identifiant: username, motdepasse: password, isRelogin: false, cn, cv, uuid: '', fa: [{ cn, cv }] }
@@ -75,7 +111,7 @@ async function login(username, password) {
     if (json.code === 505) throw new Error('Identifiants invalides')
     if (json.code !== 200 && json.code !== 250) throw new Error(`Erreur API ${json.code}`)
 
-    saveCredentials(username, password)
+    saveUsername(username)
 
     if (json.code === 250) {
       pendingMfaCreds = { username, password }
@@ -97,11 +133,13 @@ async function showMfa() {
   try {
     const headers = xToken ? { 'x-token': xToken } : {}
     const json = await apiPost(`/v3/connexion/doubleauth.awp?verbe=get&v=${API_VERSION}`, {}, headers)
-    if (!json.data) throw new Error('Réponse MFA invalide')
+    if (!json.data || !json.data.question || !Array.isArray(json.data.propositions))
+      throw new Error(`Réponse MFA invalide (code ${json.code}${json.message ? ' – ' + json.message : ''})`)
 
     $('mfa-question-text').textContent = decodeBase64UTF8(json.data.question)
 
-    const options   = json.data.propositions.map(p => decodeBase64UTF8(p))
+    // On garde la valeur brute du serveur (à renvoyer telle quelle) + le libellé décodé
+    const options   = json.data.propositions.map(p => ({ raw: p, label: decodeBase64UTF8(p) }))
     const container = $('mfa-options')
     container.innerHTML = ''
     let selectedAnswer = null
@@ -109,7 +147,8 @@ async function showMfa() {
     options.forEach(option => {
       const el = document.createElement('div')
       el.className = 'mfa-option'
-      el.innerHTML = `<div class="mfa-radio"></div><span>${option}</span>`
+      el.innerHTML = '<div class="mfa-radio"></div><span></span>'
+      el.querySelector('span').textContent = option.label
       el.addEventListener('click', () => {
         container.querySelectorAll('.mfa-option').forEach(o => o.classList.remove('selected'))
         el.classList.add('selected')
@@ -126,7 +165,7 @@ async function showMfa() {
         const headers2  = xToken ? { 'x-token': xToken } : {}
         const mfaResult = await apiPost(
           `/v3/connexion/doubleauth.awp?verbe=post&v=${API_VERSION}`,
-          { choix: btoa(selectedAnswer) },
+          { choix: selectedAnswer.raw },
           headers2
         )
         const cn = mfaResult.data?.cn, cv = mfaResult.data?.cv
@@ -140,9 +179,10 @@ async function showMfa() {
           cn, cv, uuid: '',
           fa: [{ cn, cv }],
         }
-        const reloginJson = await apiPost(`/v3/login.awp?v=${API_VERSION}`, reloginBody)
+        const reloginJson = await apiPost(`/v3/login.awp?v=${API_VERSION}`, reloginBody, xToken ? { 'x-token': xToken } : {})
         if (reloginJson.code !== 200) throw new Error('Re-login échoué après MFA')
 
+        pendingMfaCreds = null
         const account = reloginJson.data?.accounts?.[0]
         await loadGrades(account?.id, account ? `${account.prenom} ${account.nom}`.trim() : '')
 
@@ -160,8 +200,9 @@ async function showMfa() {
 }
 
 // ── Notes ──────────────────────────────────────────────────────────────────
-async function loadGrades(studentId, studentName) {
+async function loadGrades(studentId, studentName, silent = false) {
   showLoading('Chargement des notes…', studentName)
+  if (studentId) localStorage.setItem('ed_acc', JSON.stringify({ id: studentId, name: studentName }))
 
   try {
     const headers    = xToken ? { 'x-token': xToken } : {}
@@ -185,7 +226,12 @@ async function loadGrades(studentId, studentName) {
 
   } catch (e) {
     showScreen('login')
-    showError('Erreur notes : ' + e.message)
+    if (silent) {
+      clearSession()
+      showError('Session expirée, reconnecte-toi.')
+    } else {
+      showError('Erreur notes : ' + e.message)
+    }
   }
 }
 
@@ -229,6 +275,13 @@ function calcGroupAverage(subjects) {
   return round2(valid.reduce((sum, s) => sum + s.average * s.coefMatiere, 0) / totalCoef)
 }
 
+/** Nom du professeur ayant mis la note ('' si inconnu).
+ *  ⚠ À adapter selon le champ réellement présent dans ton notes.json. */
+function extractTeacher(note) {
+  const t = note.professeur ?? note.prof ?? note.nomProf ?? ''
+  return (typeof t === 'object' && t !== null ? t.nom : String(t)).trim()
+}
+
 // ── Parsing des données brutes ─────────────────────────────────────────────
 function parseGrades(data) {
   const rawNotes = data.notes || []
@@ -251,6 +304,7 @@ function parseGrades(data) {
       codeSousMatiere: note.codeSousMatiere || '',
       period:          note.codePeriode || '',
       date:            note.date || '',
+      teacher:         extractTeacher(note),
       classAvg:        parseFloat2(note.moyenneClasse),
       classMin:        parseFloat2(note.minClasse),
       classMax:        parseFloat2(note.maxClasse),
