@@ -23,7 +23,7 @@ This is a messy, half vibe-coded, temporary personal project, made for me and a 
 
 ## Privacy
 
-Because of CORS, requests go through a Cloudflare worker. Its code is shared (backend.js), and nothing in the source stores anything. But I can't prove what actually runs on the server: you have to take my word that I store nothing.
+Because of CORS, requests go through a Cloudflare worker. I have not published it's code and I assure you nothing is saved. However I can't prove what actually runs on the server: you have to take my word that I store nothing.
 
 ## Copying
 
