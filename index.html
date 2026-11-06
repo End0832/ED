@@ -227,6 +227,7 @@ function renderPeriodPage(period) {
   const { generalAverage, groupAverages } = period
 
   const fmtAvg = v => v != null ? `${v}/20` : '—'
+  const vis    = g => g.value !== null || g.isDispensed || g.nonSignificatif
 
   let html = `
     <div class="general-avg-card" id="gen-card-${period.periodId}"
@@ -272,7 +273,7 @@ function renderPeriodPage(period) {
     const color        = hasGrades ? subjectColor(subject.average, subject.classAverage) : 'gray'
     const avgDisplay   = fmtAvg(subject.average)
     const classDisplay = hasGrades && subject.classAverage !== null
-      ? `Classe : ${subject.classAverage.toFixed(1)}`
+      ? `Classe : ${subject.classAverage}`
       : ''
 
     html += `
@@ -286,27 +287,33 @@ function renderPeriodPage(period) {
             </div>
             ${classDisplay ? `<div class="subject-class-avg">${classDisplay}</div>` : ''}
           </div>
-          ${subject.grades.some(g => g.value !== null || g.isDispensed || g.nonSignificatif)
+          ${subject.grades.some(vis)
             ? '<span class="subject-chevron">⌄</span>'
             : ''}
           <div class="subject-avg c-${color}">${avgDisplay}</div>
         </div>
-        <div class="subject-grades">
-        ${(subject.subs || []).map(s => `
-          <div class="grade-row">
-            <div class="grade-info"><div class="grade-name">↳ ${s.name}</div></div>
-            <div class="grade-coef">×${s.coefMatiere}</div>
-            <div class="grade-badge c-gray bg-gray">${fmtAvg(s.average)}</div>
-          </div>`).join('')}`
+        <div class="subject-grades">`
 
-    const visibleGrades = subject.grades.filter(g => g.value !== null || g.isDispensed || g.nonSignificatif)
+    const subs     = subject.subs || []
+    const subCodes = new Set(subs.map(s => s.codeSousMatiere))
 
-    html += renderGradesByTeacher(visibleGrades)
+    // Sous-matières : chacune avec ses propres notes en dessous
+    html += subs.map(s => `
+      <div style="margin:6px 0;padding-left:8px;border-left:3px solid rgba(128,128,128,.4)">
+        <div style="display:flex;justify-content:space-between;font-weight:700;font-size:13px;padding:4px 0">
+          <span>↳ ${s.name} <span style="opacity:.6">×${s.coefMatiere}</span></span>
+          <span>${fmtAvg(s.average)}${s.classAverage !== null ? ` <span style="opacity:.6;font-weight:400">(Classe : ${round2(s.classAverage)})</span>` : ''}</span>
+        </div>
+        ${renderGradesByTeacher(s.grades.filter(vis))}
+      </div>`).join('')
+
+    // Notes restantes (sans sous-matière)
+    html += renderGradesByTeacher(subject.grades.filter(g => vis(g) && !subCodes.has(g.codeSousMatiere)))
 
     html += `</div></div>`
   })
 
-  return html + '</div></div>'
+  return html + '</div>'
 }
 
 function goToPage(idx) {
