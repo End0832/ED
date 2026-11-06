@@ -246,7 +246,7 @@ function parseFloat2(value) {
 
 /** Arrondi à 2 décimales avec correction d'erreur flottante. */
 function round2(n) {
-  return n !== null ? Number(Math.round((n + Number.EPSILON) * 100) / 100) : null
+  return n !== null && n !== undefined ? Number(Math.round((n + Number.EPSILON) * 100) / 100) : null
 }
 
 /** Moyenne pondérée des notes de l'élève, ramenées sur 20. */
@@ -273,6 +273,15 @@ function calcGroupAverage(subjects) {
   const totalCoef = valid.reduce((sum, s) => sum + s.coefMatiere, 0)
   if (totalCoef <= 0) return null
   return round2(valid.reduce((sum, s) => sum + s.average * s.coefMatiere, 0) / totalCoef)
+}
+
+/** Moyenne de classe d'un groupe de sous-matières, pondérée par coef. */
+function calcClassGroupAverage(subjects) {
+  const valid     = subjects.filter(s => s.classAverage !== null)
+  const totalCoef = valid.reduce((sum, s) => sum + s.coefMatiere, 0)
+  return totalCoef > 0
+    ? valid.reduce((sum, s) => sum + s.classAverage * s.coefMatiere, 0) / totalCoef
+    : null
 }
 
 /** Nom du professeur ayant mis la note ('' si inconnu).
@@ -333,13 +342,16 @@ function parseGrades(data) {
       // Sous-matières (ex. Physique-Chimie → Évaluations écrites / expérimentales)
       const subDisciplines = disciplines.filter(d => !d.groupeMatiere && d.sousMatiere)
       const buildSub = d => {
-        const grades = periodGrades.filter(g =>
-          g.codeMatiere === d.codeMatiere && g.codeSousMatiere === d.codeSousMatiere)
+        const grades = periodGrades
+          .filter(g => g.codeMatiere === d.codeMatiere && g.codeSousMatiere === d.codeSousMatiere)
+          .sort((a, b) => a.date.localeCompare(b.date))
         return {
-          name:         d.libelle || d.discipline || d.codeSousMatiere,
-          coefMatiere:  parseFloat2(d.coef) ?? 1,
-          average:      round2(calcSubjectAverage(grades)),
-          classAverage: calcSubjectClassAverage(grades),
+          name:            d.libelle || d.discipline || d.codeSousMatiere,
+          codeSousMatiere: d.codeSousMatiere,
+          coefMatiere:     parseFloat2(d.coef) ?? 1,
+          average:         round2(calcSubjectAverage(grades)),
+          classAverage:    calcSubjectClassAverage(grades),
+          grades,
         }
       }
 
@@ -357,12 +369,19 @@ function parseGrades(data) {
           ? calcGroupAverage(subs)
           : round2(calcSubjectAverage(grades))
 
+        // Même méthode pour la classe : ce qui est comparé = ce qui est affiché
+        const classAverage = round2(
+          subs.some(s => s.classAverage !== null)
+            ? calcClassGroupAverage(subs)
+            : calcSubjectClassAverage(grades)
+        )
+
         const subject = {
           name:         discipline.libelle || discipline.discipline || discipline.codeMatiere,
           codeMatiere:  discipline.codeMatiere,
           coefMatiere,
           average,
-          classAverage: calcSubjectClassAverage(grades),
+          classAverage,
           subs:         subs.filter(s => s.average !== null),
           grades:       grades.sort((a, b) => a.date.localeCompare(b.date)),
         }
